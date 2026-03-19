@@ -7,7 +7,8 @@ const PREFIXES = {
   quotation: "QT",
   pi: "PI",
   contract: "CT",
-  cl: "CL",
+  cl: "PL",
+  ci: "CI",
   shipment: "SH",
   payment: "PA",
 } as const;

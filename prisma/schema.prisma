@@ -1,4 +1,3 @@
-// Prisma schema for CRM/ERP - 客户与外贸业务管理
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +7,433 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============ Enums ============
+model Customer {
+  id                         String              @id @default(cuid())
+  customerCode               String              @unique
+  nameCn                     String?
+  nameEn                     String?
+  shortName                  String?
+  country                    String?
+  city                       String?
+  address                    String?
+  phone                      String?
+  email                      String?
+  website                    String?
+  taxNo                      String?
+  contactPerson              String?
+  contactTitle               String?
+  defaultCurrency            String?             @default("USD")
+  defaultPaymentTerm         String?
+  defaultIncoterm            String?
+  defaultPortOfDestination   String?
+  defaultInsuranceTerm       String?
+  defaultPackingTerm         String?
+  defaultDocumentRequirement String?
+  customerLevel              String?
+  status                     CustomerStatus      @default(ACTIVE)
+  remark                     String?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  defaultPortOfShipment      String?
+  commercialInvoices         CommercialInvoice[]
+  contracts                  Contract[]
+  packingLists               PackingList[]
+  payments                   Payment[]
+  proformaInvoices           ProformaInvoice[]
+  quotations                 Quotation[]
+  shipments                  Shipment[]
+}
+
+model Product {
+  id                     String                  @id @default(cuid())
+  productCode            String                  @unique
+  name                   String
+  category               String?
+  material               String?
+  density                Float?
+  unit                   String?                 @default("kg")
+  defaultPrice           Float?
+  currency               String?                 @default("USD")
+  weightFormulaType      String?
+  pricingMethod          String?
+  packingMethod          String?
+  remark                 String?
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  commercialInvoiceItems CommercialInvoiceItem[]
+  contractItems          ContractItem[]
+  packingListItems       PackingListItem[]
+  piItems                PiItem[]
+  quotationItems         QuotationItem[]
+}
+
+model Quotation {
+  id               String            @id @default(cuid())
+  quotationNo      String            @unique
+  customerId       String
+  quotationDate    DateTime
+  validUntil       DateTime?
+  currency         String            @default("USD")
+  paymentTerm      String?
+  incoterm         String?
+  remark           String?
+  status           QuotationStatus   @default(DRAFT)
+  totalAmount      Float             @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  contracts        Contract[]
+  proformaInvoices ProformaInvoice[]
+  customer         Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items            QuotationItem[]
+}
+
+model QuotationItem {
+  id          String    @id @default(cuid())
+  quotationId String
+  productId   String?
+  productName String
+  category    String?
+  thickness   String?
+  width       String?
+  length      String?
+  unitPrice   Float
+  rollQty     Float     @default(0)
+  quantityKg  Float     @default(0)
+  amount      Float
+  remark      String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  product     Product?  @relation(fields: [productId], references: [id])
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+}
+
+model ProformaInvoice {
+  id          String     @id @default(cuid())
+  piNo        String     @unique
+  customerId  String
+  quotationId String?
+  issueDate   DateTime
+  currency    String     @default("USD")
+  paymentTerm String?
+  bankInfo    String?
+  status      PiStatus   @default(DRAFT)
+  totalAmount Float      @default(0)
+  remark      String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  contract    Contract?
+  payments    Payment[]
+  piItems     PiItem[]
+  customer    Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+}
+
+model PiItem {
+  id          String          @id @default(cuid())
+  piId        String
+  productId   String?
+  productName String
+  category    String?
+  thickness   String?
+  width       String?
+  length      String?
+  unitPrice   Float
+  rollQty     Float           @default(0)
+  quantityKg  Float           @default(0)
+  amount      Float
+  remark      String?
+  sortOrder   Int             @default(0)
+  pi          ProformaInvoice @relation(fields: [piId], references: [id], onDelete: Cascade)
+  product     Product?        @relation(fields: [productId], references: [id])
+}
+
+model Contract {
+  id                    String               @id @default(cuid())
+  contractNo            String               @unique
+  contractDate          DateTime
+  customerId            String
+  quotationId           String?
+  piId                  String?              @unique
+  currency              String               @default("USD")
+  incoterm              String?
+  paymentTerm           String?
+  packingTerm           String?
+  insuranceTerm         String?
+  documentRequirement   String?
+  bankInfo              String?
+  totalAmount           Float                @default(0)
+  totalWeight           Float                @default(0)
+  totalRolls            Float                @default(0)
+  signStatus            SignStatus           @default(UNSIGNED)
+  executionStatus       ExecutionStatus      @default(DRAFT)
+  remark                String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  estimatedShipmentDate String?
+  partialShipment       AllowOption          @default(ALLOWED)
+  portOfDestination     String?
+  portOfShipment        String?
+  transhipment          AllowOption          @default(ALLOWED)
+  depositRatio          Float?
+  paymentMethod         PaymentMethod?
+  moreOrLessPercent     Float?
+  contractType          ContractType         @default(FILM)
+  commercialInvoices    CommercialInvoice[]
+  customer              Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  pi                    ProformaInvoice?     @relation(fields: [piId], references: [id])
+  quotation             Quotation?           @relation(fields: [quotationId], references: [id])
+  attachments           ContractAttachment[]
+  items                 ContractItem[]
+  logs                  ContractLog[]
+  documentTodos         DocumentTodo[]
+  packingLists          PackingList[]
+  payments              Payment[]
+  shipments             Shipment[]
+}
+
+model ContractItem {
+  id           String   @id @default(cuid())
+  contractId   String
+  productId    String?
+  productName  String
+  category     String?
+  thickness    String?
+  width        String?
+  length       String?
+  unitPrice    Float
+  rollQty      Float    @default(0)
+  quantityKg   Float    @default(0)
+  actualQty    Float?   @default(0)
+  confirmedQty Float?   @default(0)
+  amount       Float
+  remark       String?
+  sortOrder    Int      @default(0)
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id])
+}
+
+model ContractLog {
+  id         String   @id @default(cuid())
+  contractId String
+  actionType String
+  content    String?
+  operator   String?
+  createdAt  DateTime @default(now())
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+}
+
+model ContractAttachment {
+  id         String   @id @default(cuid())
+  contractId String
+  fileName   String
+  fileUrl    String
+  fileType   String
+  category   String
+  fileSize   Int?     @default(0)
+  uploadedAt DateTime @default(now())
+  uploadedBy String?
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, category])
+}
+
+model DocumentTodo {
+  id         String     @id @default(cuid())
+  contractId String
+  todoType   TodoType
+  status     TodoStatus @default(PENDING)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  contract   Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, todoType])
+  @@index([todoType, status])
+}
+
+model CommercialInvoice {
+  id                   String                  @id @default(cuid())
+  invoiceNo            String                  @unique
+  invoiceDate          DateTime
+  contractId           String
+  customerId           String
+  buyerName            String?
+  buyerAddress         String?
+  paymentTerm          String?
+  tradeTerm            String?
+  packingTerm          String?
+  fromPort             String?
+  destinationPort      String?
+  vesselVoyageNo       String?
+  departureDate        DateTime?
+  depositDeduction     Float?                  @default(0)
+  totalAmount          Float                   @default(0)
+  totalAmountInWords   String?
+  balanceAmount        Float?
+  balanceAmountInWords String?
+  shippingMarks        String?
+  currency             String                  @default("USD")
+  remark               String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  depositAmount        Float?
+  depositRatio         Float?
+  lcNo                 String?
+  paymentMethod        PaymentMethod?
+  contract             Contract                @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customer             Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items                CommercialInvoiceItem[]
+}
+
+model CommercialInvoiceItem {
+  id                  String            @id @default(cuid())
+  commercialInvoiceId String
+  productId           String?
+  productName         String
+  specification       String?
+  contractQuantityKg  Float             @default(0)
+  actualQuantityKg    Float             @default(0)
+  contractRollQty     Float             @default(0)
+  actualRollQty       Float             @default(0)
+  unitPrice           Float             @default(0)
+  amount              Float             @default(0)
+  hsCode              String?
+  remark              String?
+  sortOrder           Int               @default(0)
+  commercialInvoice   CommercialInvoice @relation(fields: [commercialInvoiceId], references: [id], onDelete: Cascade)
+  product             Product?          @relation(fields: [productId], references: [id])
+}
+
+model PackingList {
+  id               String            @id @default(cuid())
+  clNo             String            @unique
+  contractId       String
+  shipmentDate     DateTime?
+  batchNo          String?
+  packageCount     Int?
+  netWeight        Float?
+  grossWeight      Float?
+  volume           Float?
+  containerNo      String?
+  sealNo           String?
+  remark           String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  buyerAddress     String?
+  buyerName        String?
+  customerId       String?
+  departureDate    DateTime?
+  destinationPort  String?
+  documentDate     DateTime?
+  fromPort         String?
+  invoiceNo        String?
+  packingTerm      String?
+  paymentTerm      String?
+  shippingMarks    String?
+  totalCbm         Float?
+  totalGrossWeight Float?
+  totalNetWeight   Float?
+  totalPallets     Int?
+  totalRolls       Float?
+  tradeTerm        String?
+  vesselVoyageNo   String?
+  lcNo             String?
+  paymentMethod    PaymentMethod?
+  contract         Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customer         Customer?         @relation(fields: [customerId], references: [id])
+  items            PackingListItem[]
+}
+
+model PackingListItem {
+  id                  String      @id @default(cuid())
+  packingListId       String
+  productId           String?
+  productName         String
+  specification       String?
+  contractNetWeightKg Float       @default(0)
+  actualNetWeightKg   Float       @default(0)
+  contractRollQty     Float       @default(0)
+  actualRollQty       Float       @default(0)
+  palletQty           Float?
+  grossWeightKg       Float?
+  cbm                 Float?
+  remark              String?
+  sortOrder           Int         @default(0)
+  packingList         PackingList @relation(fields: [packingListId], references: [id], onDelete: Cascade)
+  product             Product?    @relation(fields: [productId], references: [id])
+}
+
+model Shipment {
+  id                String         @id @default(cuid())
+  shipmentNo        String         @unique
+  contractId        String
+  customerId        String
+  etd               DateTime?
+  eta               DateTime?
+  shippingDate      DateTime?
+  vesselVoyage      String?
+  billOfLadingNo    String?
+  portOfLoading     String?
+  portOfDestination String?
+  containerNo       String?
+  sealNo            String?
+  status            ShipmentStatus @default(BOOKED)
+  remark            String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  contract          Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  customer          Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model DocumentTemplate {
+  id           String       @id @default(cuid())
+  name         String
+  templateType TemplateType
+  content      String?
+  isDefault    Boolean      @default(false)
+  sortOrder    Int          @default(0)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([templateType, isActive])
+}
+
+model CompanyProfile {
+  id             String   @id @default(cuid())
+  companyName    String?
+  companyAddress String?
+  companyTel     String?
+  companyEmail   String?
+  companyFax     String?
+  companyBank    String?
+  companyAccount String?
+  companySwift   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Payment {
+  id            String           @id @default(cuid())
+  paymentNo     String           @unique
+  customerId    String
+  contractId    String?
+  piId          String?
+  paymentDate   DateTime
+  amount        Float
+  currency      String           @default("USD")
+  exchangeRate  Float?           @default(1)
+  paymentMethod String?
+  bankReference String?
+  remark        String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  contract      Contract?        @relation(fields: [contractId], references: [id])
+  customer      Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  pi            ProformaInvoice? @relation(fields: [piId], references: [id])
+}
+
 enum CustomerStatus {
   ACTIVE
   INACTIVE
@@ -29,12 +454,30 @@ enum ExecutionStatus {
   FULLY_RECEIVED
   COMPLETED
   CANCELLED
+  DEPOSIT_RECEIVED
+  LC_RECEIVED
+  COMPLETED_PAID
+}
+
+enum PaymentMethod {
+  TT
+  LC
+}
+
+enum AllowOption {
+  ALLOWED
+  NOT_ALLOWED
 }
 
 enum SignStatus {
   UNSIGNED
   SIGNED
   VOIDED
+}
+
+enum ContractType {
+  FILM
+  RESIN
 }
 
 enum QuotationStatus {
@@ -53,295 +496,55 @@ enum PiStatus {
 }
 
 enum ShipmentStatus {
+  BOOKED
+  STUFFED
+  SAILED
+}
+
+enum TemplateType {
+  PAYMENT_TERM
+  INCOTERM
+  SHIPMENT_TERM
+  PACKING_TERM
+  INSURANCE_TERM
+  DOCUMENT_REQUIREMENT
+  BANK_INFO
+}
+
+enum TodoType {
+  PI
+  CL
+}
+
+enum TodoStatus {
   PENDING
-  SHIPPED
-  DELIVERED
+  DONE
   CANCELLED
 }
+model User {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String         @unique @db.VarChar(255)
+  passwordHash  String         @map("password_hash")
+  name          String?        @db.VarChar(100)
+  role          String         @default("staff") @db.VarChar(50)
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @map("updated_at")
+  refreshTokens RefreshToken[]
 
-// ============ Customer ============
-model Customer {
-  id                        String    @id @default(cuid())
-  customerCode              String    @unique
-  nameCn                    String?
-  nameEn                    String?
-  shortName                 String?
-  country                   String?
-  city                      String?
-  address                   String?
-  phone                     String?
-  email                     String?
-  website                   String?
-  taxNo                     String?
-  contactPerson             String?
-  contactTitle              String?
-  defaultCurrency           String?   @default("USD")
-  defaultPaymentTerm        String?
-  defaultIncoterm           String?
-  defaultPortOfLoading     String?
-  defaultPortOfDestination  String?
-  defaultInsuranceTerm      String?
-  defaultPackingTerm        String?
-  defaultDocumentRequirement String?
-  customerLevel             String?
-  status                    CustomerStatus @default(ACTIVE)
-  remark                    String?
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-
-  quotations                Quotation[]
-  proformaInvoices          ProformaInvoice[]
-  contracts                 Contract[]
-  payments                  Payment[]
-  shipments                 Shipment[]
+  @@map("users")
 }
 
-// ============ Product ============
-model Product {
-  id                String   @id @default(cuid())
-  productCode       String   @unique
-  name              String
-  category          String?
-  material          String?
-  thickness         String?
-  width             String?
-  length            String?
-  density           Float?
-  unit              String?  @default("kg")
-  defaultPrice      Float?
-  currency          String?  @default("USD")
-  weightFormulaType String?
-  pricingMethod     String?
-  packingMethod     String?
-  remark            String?
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  token      String    @db.VarChar(512)
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  quotationItems    QuotationItem[]
-  contractItems     ContractItem[]
-  piItems           PiItem[]
-}
-
-// ============ Quotation ============
-model Quotation {
-  id           String          @id @default(cuid())
-  quotationNo  String          @unique
-  customerId   String
-  quotationDate DateTime
-  validUntil   DateTime?
-  currency     String          @default("USD")
-  paymentTerm  String?
-  incoterm     String?
-  remark       String?
-  status       QuotationStatus @default(DRAFT)
-  totalAmount  Float           @default(0)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-
-  customer     Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  items        QuotationItem[]
-
-  proformaInvoices ProformaInvoice[]
-  contracts        Contract[]
-}
-
-model QuotationItem {
-  id          String   @id @default(cuid())
-  quotationId String
-  productId   String?
-  productName String
-  category    String?
-  thickness   String?
-  width       String?
-  length      String?
-  unitPrice   Float
-  rollQty     Float    @default(0)
-  quantityKg  Float    @default(0)
-  amount      Float
-  remark      String?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  product     Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
-}
-
-// ============ Proforma Invoice ============
-model ProformaInvoice {
-  id          String   @id @default(cuid())
-  piNo        String   @unique
-  customerId  String
-  quotationId String?
-  contractId  String?
-  issueDate   DateTime
-  currency    String   @default("USD")
-  paymentTerm String?
-  bankInfo    String?
-  status      PiStatus @default(DRAFT)
-  totalAmount Float    @default(0)
-  remark      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  quotation    Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
-  contract     Contract?  @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  piItems      PiItem[]
-  payments     Payment[]
-}
-
-model PiItem {
-  id          String   @id @default(cuid())
-  piId        String
-  productId   String?
-  productName String
-  category    String?
-  thickness   String?
-  width       String?
-  length      String?
-  unitPrice   Float
-  rollQty     Float    @default(0)
-  quantityKg  Float    @default(0)
-  amount      Float
-  remark      String?
-  sortOrder   Int      @default(0)
-
-  pi          ProformaInvoice @relation(fields: [piId], references: [id], onDelete: Cascade)
-  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-}
-
-// ============ Contract ============
-model Contract {
-  id                  String           @id @default(cuid())
-  contractNo          String           @unique
-  contractDate        DateTime
-  customerId          String
-  quotationId         String?
-  piId                String?
-  currency            String           @default("USD")
-  incoterm            String?
-  paymentTerm         String?
-  shipmentTerm        String?
-  packingTerm         String?
-  insuranceTerm       String?
-  documentRequirement String?
-  bankInfo            String?
-  totalAmount         Float            @default(0)
-  totalWeight        Float            @default(0)
-  totalRolls         Float            @default(0)
-  signStatus         SignStatus       @default(UNSIGNED)
-  executionStatus    ExecutionStatus  @default(DRAFT)
-  remark             String?
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-
-  customer    Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
-  pi          ProformaInvoice? @relation(fields: [piId], references: [id], onDelete: SetNull)
-  items       ContractItem[]
-  packingLists PackingList[]
-  shipments   Shipment[]
-  payments    Payment[]
-  logs        ContractLog[]
-}
-
-model ContractItem {
-  id           String   @id @default(cuid())
-  contractId   String
-  productId    String?
-  productName  String
-  category     String?
-  thickness    String?
-  width        String?
-  length       String?
-  unitPrice    Float
-  rollQty      Float    @default(0)
-  quantityKg   Float    @default(0)
-  actualQty    Float?   @default(0)
-  confirmedQty Float?   @default(0)
-  amount       Float
-  remark       String?
-  sortOrder    Int      @default(0)
-
-  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-}
-
-model ContractLog {
-  id         String   @id @default(cuid())
-  contractId String
-  actionType String
-  content    String?
-  operator   String?
-  createdAt  DateTime @default(now())
-
-  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-}
-
-// ============ Packing List (CL) ============
-model PackingList {
-  id            String   @id @default(cuid())
-  clNo          String   @unique
-  contractId    String
-  shipmentDate  DateTime?
-  batchNo       String?
-  packageCount  Int?
-  netWeight     Float?
-  grossWeight   Float?
-  volume        Float?
-  containerNo   String?
-  sealNo        String?
-  remark        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  contract      Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-}
-
-// ============ Shipment ============
-model Shipment {
-  id                String         @id @default(cuid())
-  shipmentNo        String         @unique
-  contractId        String
-  customerId        String
-  etd               DateTime?
-  eta               DateTime?
-  shippingDate      DateTime?
-  vesselVoyage      String?
-  billOfLadingNo    String?
-  portOfLoading     String?
-  portOfDestination String?
-  containerNo       String?
-  sealNo            String?
-  status            ShipmentStatus @default(PENDING)
-  remark            String?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-
-  contract  Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-}
-
-// ============ Payment ============
-model Payment {
-  id            String   @id @default(cuid())
-  paymentNo     String   @unique
-  customerId    String
-  contractId    String?
-  piId          String?
-  paymentDate   DateTime
-  amount        Float
-  currency      String   @default("USD")
-  exchangeRate  Float?   @default(1)
-  paymentMethod String?
-  bankReference String?
-  remark        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  contract  Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  pi        ProformaInvoice? @relation(fields: [piId], references: [id], onDelete: SetNull)
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
 }
