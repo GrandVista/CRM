@@ -22,6 +22,7 @@ import { DeleteContractButton } from "@/components/contracts/delete-contract-but
 import { ContractStatusForm } from "@/components/contracts/contract-status-form";
 import { ContractClauseRow } from "@/components/contracts/contract-clause-row";
 import { CONTRACT_ATTACHMENT_CATEGORY } from "@/lib/contract-attachment-constants";
+import { getCurrentAuthUser } from "@/lib/server-auth";
 
 export default async function ContractDetailPage({
   params,
@@ -31,6 +32,9 @@ export default async function ContractDetailPage({
   const { id } = await params;
   const contract = await getContractById(id);
   if (!contract) notFound();
+  const currentUser = await getCurrentAuthUser();
+  const currentUserRole = currentUser?.role ?? "staff";
+  const isArchived = contract.signStatus === "SIGNED";
 
   const displayName = getCustomerDisplayName(contract.customer ?? null) || contract.contractNo;
 
@@ -40,7 +44,12 @@ export default async function ContractDetailPage({
         <Button asChild variant="outline">
           <Link href={`/contracts/${id}/edit`}>编辑</Link>
         </Button>
-        <DeleteContractButton contractId={id} contractNo={contract.contractNo} />
+        <DeleteContractButton
+          contractId={id}
+          contractNo={contract.contractNo}
+          isArchived={isArchived}
+          currentUserRole={currentUserRole}
+        />
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}/print`} target="_blank" rel="noopener noreferrer">
             打印 / 导出 PDF

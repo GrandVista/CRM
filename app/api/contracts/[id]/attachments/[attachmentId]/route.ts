@@ -10,12 +10,12 @@ function getUploadDir(contractId: string): string {
 /** DELETE: 删除附件（同时删除磁盘文件） */
 export async function DELETE(
   _req: Request,
-  { params }: { params: Promise<{ contractId: string; attachmentId: string }> }
+  { params }: { params: Promise<{ id: string; attachmentId: string }> }
 ) {
-  const { contractId, attachmentId } = await params;
+  const { id, attachmentId } = await params;
 
   const att = await prisma.contractAttachment.findFirst({
-    where: { id: attachmentId, contractId },
+    where: { id: attachmentId, contractId: id },
     select: { id: true, fileUrl: true },
   });
   if (!att) {
@@ -25,7 +25,7 @@ export async function DELETE(
   await prisma.contractAttachment.delete({ where: { id: attachmentId } });
 
   const fileName = path.basename(att.fileUrl);
-  const filePath = path.join(getUploadDir(contractId), fileName);
+  const filePath = path.join(getUploadDir(id), fileName);
   try {
     await unlink(filePath);
   } catch (e) {

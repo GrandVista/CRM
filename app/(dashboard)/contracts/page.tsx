@@ -12,6 +12,7 @@ import {
 import { getContracts } from "@/lib/actions/contracts";
 import { ContractsSearchForm } from "@/components/contracts/contracts-search-form";
 import { ContractListRow } from "@/components/contracts/contract-list-row";
+import { getCurrentAuthUser } from "@/lib/server-auth";
 
 export default async function ContractsPage({
   searchParams,
@@ -24,6 +25,8 @@ export default async function ContractsPage({
     signStatus: params.signStatus,
     executionStatus: params.executionStatus,
   });
+  const currentUser = await getCurrentAuthUser();
+  const currentUserRole = currentUser?.role ?? "staff";
 
   return (
     <div className="flex flex-col">
@@ -64,7 +67,9 @@ export default async function ContractsPage({
                   </TableCell>
                 </TableRow>
               ) : (
-                contracts.map((c) => <ContractListRow key={c.id} contract={c} />)
+                contracts.map((c) => (
+                  <ContractListRow key={c.id} contract={c} currentUserRole={currentUserRole} />
+                ))
               )}
             </TableBody>
           </Table>

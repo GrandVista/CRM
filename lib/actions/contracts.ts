@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import { sumAmounts, sumWeights, sumRolls } from "@/lib/numbers";
 import { ensureDocumentTodosForSignedContract } from "@/lib/actions/document-todos";
 import { hasSignedContractAttachment } from "@/lib/actions/contract-attachments";
+import { getCurrentAuthUser } from "@/lib/server-auth";
 import type { SignStatus, ExecutionStatus, AllowOption, PaymentMethod, ContractType } from "@prisma/client";
 
 function isUniqueConstraintError(e: unknown): boolean {
@@ -116,6 +117,14 @@ export async function getContracts(params?: {
       attachments: {
         where: { category: "SIGNED_CONTRACT" },
         select: { id: true, fileName: true, fileUrl: true },
+      },
+      _count: {
+        select: {
+          commercialInvoices: true,
+          packingLists: true,
+          shipments: true,
+          payments: true,
+        },
       },
     },
   });
@@ -408,8 +417,154 @@ export async function updateContractStatus(
   revalidatePath("/dashboard");
 }
 
+export async function duplicateContract(contractId: string) {
+  const old = await prisma.contract.findUnique({
+    where: { id: contractId },
+  });
+  if (!old) throw new Error("合同不存在");
+
+  const customer = await prisma.customer.findUnique({
+    where: { id: old.customerId },
+    select: { shortName: true },
+  });
+  if (!customer) throw new Error("客户不存在");
+  const AA = customer.shortName?.trim() ?? "";
+  if (!AA) throw new Error("请先在客户资料中填写客户缩写。");
+
+  const maxRetries = 3;
+  let lastError: unknown;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const YYMMDD = `${yy}${mm}${dd}`;
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(startOfDay);
+      endOfDay.setDate(endOfDay.getDate() + 1);
+
+      const count = await prisma.contract.count({
+        where: {
+          customerId: old.customerId,
+          createdAt: { gte: startOfDay, lt: endOfDay },
+        },
+      });
+      const XX = String(count + 1).padStart(2, "0");
+      const baseNo = `${YYMMDD}-${AA}${XX}`;
+      const contractNo = old.contractType === "RESIN" ? `R${baseNo}` : baseNo;
+
+      const duplicated = await prisma.contract.create({
+        data: {
+          contractNo,
+          contractType: old.contractType,
+          contractDate: now,
+          customerId: old.customerId,
+          quotationId: old.quotationId,
+          piId: null,
+          currency: old.currency,
+          incoterm: old.incoterm,
+          paymentMethod: old.paymentMethod,
+          depositRatio: old.depositRatio,
+          paymentTerm: old.paymentTerm,
+          portOfShipment: old.portOfShipment,
+          portOfDestination: old.portOfDestination,
+          partialShipment: old.partialShipment,
+          transhipment: old.transhipment,
+          estimatedShipmentDate: null,
+          packingTerm: old.packingTerm,
+          insuranceTerm: old.insuranceTerm,
+          documentRequirement: old.documentRequirement,
+          bankInfo: old.bankInfo,
+          moreOrLessPercent: old.moreOrLessPercent,
+          remark: old.remark,
+          signStatus: old.signStatus,
+          executionStatus: old.executionStatus,
+          totalAmount: 0,
+          totalWeight: 0,
+          totalRolls: 0,
+        },
+        include: {
+          customer: true,
+          items: { include: { product: true } },
+        },
+      });
+
+      await createContractLog(
+        duplicated.id,
+        "CREATE",
+        `由合同 ${old.contractNo} 复制创建，未复制产品明细。`
+      );
+      revalidatePath("/contracts");
+      revalidatePath(`/contracts/${duplicated.id}`);
+      revalidatePath("/dashboard");
+      return duplicated;
+    } catch (e) {
+      lastError = e;
+      if (isUniqueConstraintError(e)) continue;
+      throw e;
+    }
+  }
+  if (lastError !== undefined) throw lastError;
+  throw new Error("复制失败，请重试");
+}
+
+export async function forceDeleteContractByAdmin(contractId: string, operator: string) {
+  const existing = await prisma.contract.findUnique({
+    where: { id: contractId },
+    select: { id: true, contractNo: true },
+  });
+  if (!existing) throw new Error("合同不存在");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const invoicesDeleted = await tx.commercialInvoice.deleteMany({
+      where: { contractId },
+    });
+    const packingListsDeleted = await tx.packingList.deleteMany({
+      where: { contractId },
+    });
+    const shipmentsDeleted = await tx.shipment.deleteMany({
+      where: { contractId },
+    });
+    const paymentsDeleted = await tx.payment.deleteMany({
+      where: { contractId },
+    });
+
+    await tx.contract.delete({
+      where: { id: contractId },
+    });
+
+    return {
+      invoicesDeleted: invoicesDeleted.count,
+      packingListsDeleted: packingListsDeleted.count,
+      shipmentsDeleted: shipmentsDeleted.count,
+      paymentsDeleted: paymentsDeleted.count,
+    };
+  });
+
+  // 当前系统无独立审计表，先做结构化审计日志输出。
+  console.info("[force_delete_contract]", {
+    operator,
+    contractId: existing.id,
+    contractNo: existing.contractNo,
+    ...result,
+    operatedAt: new Date().toISOString(),
+  });
+
+  revalidatePath("/contracts");
+  revalidatePath("/dashboard");
+  return {
+    success: true,
+    deletedContractId: existing.id,
+    deletedRelationsSummary: result,
+  };
+}
+
 /** 删除合同前校验：存在 CI / PL / 出货 / 收款 任一关联则不允许删除 */
 export async function deleteContract(contractId: string) {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error("未登录或 token 无效");
+
   const contract = await prisma.contract.findUnique({
     where: { id: contractId },
     select: {
@@ -423,13 +578,18 @@ export async function deleteContract(contractId: string) {
   });
   if (!contract) throw new Error("合同不存在");
 
+  const isArchived = contract.signStatus === "SIGNED";
+  if (isArchived && user.role !== "admin") {
+    throw new Error("已归档合同仅管理员可删除");
+  }
+
   const reasons: string[] = [];
   if (contract.commercialInvoices.length > 0) reasons.push("CI（商业发票）");
   if (contract.packingLists.length > 0) reasons.push("PL（装箱单）");
   if (contract.shipments.length > 0) reasons.push("出货记录");
   if (contract.payments.length > 0) reasons.push("收款记录");
   if (reasons.length > 0) {
-    throw new Error(`该合同已关联 ${reasons.join("、")}，不能删除。`);
+    throw new Error("该合同已关联业务数据，不能删除");
   }
 
   await prisma.contract.delete({ where: { id: contractId } });

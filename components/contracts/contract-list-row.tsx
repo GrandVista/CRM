@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -43,9 +44,21 @@ type ContractRow = {
   executionStatus: ExecutionStatus;
   customer: { shortName: string | null; nameEn: string | null; nameCn: string | null } | null;
   attachments?: { id: string; fileName: string; fileUrl: string }[];
+  _count?: {
+    commercialInvoices: number;
+    packingLists: number;
+    shipments: number;
+    payments: number;
+  };
 };
 
-export function ContractListRow({ contract }: { contract: ContractRow }) {
+export function ContractListRow({
+  contract,
+  currentUserRole,
+}: {
+  contract: ContractRow;
+  currentUserRole: string;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [signStatus, setSignStatus] = useState<SignStatus>(contract.signStatus);
@@ -56,6 +69,11 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
   const [isDeleting, startDeleteTransition] = useTransition();
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfDialogReplaceId, setPdfDialogReplaceId] = useState<string | null>(null);
+  const [isDuplicating, startDuplicateTransition] = useTransition();
+  const [forceDeleteDialogOpen, setForceDeleteDialogOpen] = useState(false);
+  const [forceDeleteText, setForceDeleteText] = useState("");
+  const [forceDeleteError, setForceDeleteError] = useState<string | null>(null);
+  const [isForceDeleting, startForceDeleteTransition] = useTransition();
 
   const hasChange =
     signStatus !== contract.signStatus || executionStatus !== contract.executionStatus;
@@ -63,6 +81,21 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
   const hasPdf = signedAttachments.length > 0;
   const firstPdf = signedAttachments[0];
   const needsPdfForSigned = signStatus === "SIGNED" && !hasPdf;
+  const isArchivedContract = contract.signStatus === "SIGNED" || hasPdf;
+  const relatedCounts = contract._count ?? {
+    commercialInvoices: 0,
+    packingLists: 0,
+    shipments: 0,
+    payments: 0,
+  };
+  const hasRelatedData =
+    relatedCounts.commercialInvoices > 0 ||
+    relatedCounts.packingLists > 0 ||
+    relatedCounts.shipments > 0 ||
+    relatedCounts.payments > 0;
+  const canNormalDelete =
+    currentUserRole === "admin" ? !hasRelatedData : !isArchivedContract && !hasRelatedData;
+  const canShowForceDelete = currentUserRole === "admin" && !canNormalDelete;
 
   function handleUpdate() {
     if (!hasChange) return;
@@ -112,6 +145,64 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
         router.refresh();
       } catch (e) {
         setDeleteError(e instanceof Error ? e.message : "删除失败");
+      }
+    });
+  }
+
+  function handleDuplicateClick() {
+    const ok = window.confirm("是否复制该合同创建新合同？产品明细将不会被复制。");
+    if (!ok) return;
+    startDuplicateTransition(async () => {
+      setMessage(null);
+      try {
+        const res = await fetch(`/api/contracts/${contract.id}/duplicate`, { method: "POST" });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload?.error || "复制失败");
+        router.push(`/contracts/${payload.id}/edit`);
+      } catch (e) {
+        setMessage({
+          type: "error",
+          text: e instanceof Error ? e.message : "复制失败",
+        });
+      }
+    });
+  }
+
+  function handleForceDeleteClick() {
+    setForceDeleteError(null);
+    setForceDeleteText("");
+    setForceDeleteDialogOpen(true);
+  }
+
+  function handleForceDeleteConfirm() {
+    if (forceDeleteText !== "DELETE") {
+      setForceDeleteError("请输入 DELETE 以确认强制删除");
+      return;
+    }
+    startForceDeleteTransition(async () => {
+      setForceDeleteError(null);
+      try {
+        const res = await fetch(`/api/contracts/${contract.id}/force`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        const rawText = await res.text();
+        let payload: { success?: boolean; message?: string } | null = null;
+        try {
+          payload = rawText ? (JSON.parse(rawText) as { success?: boolean; message?: string }) : null;
+        } catch {
+          throw new Error("服务器返回格式错误，请稍后重试");
+        }
+        if (!res.ok || !payload?.success) {
+          throw new Error(payload?.message || "强制删除失败");
+        }
+        setForceDeleteDialogOpen(false);
+        setForceDeleteText("");
+        setMessage({ type: "success", text: payload.message || "强制删除成功" });
+        router.refresh();
+      } catch (e) {
+        setForceDeleteError(e instanceof Error ? e.message : "强制删除失败");
       }
     });
   }
@@ -219,12 +310,34 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
             type="button"
             variant="ghost"
             size="sm"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={handleDeleteClick}
-            disabled={isPending}
+            onClick={handleDuplicateClick}
+            disabled={isPending || isDuplicating}
           >
-            删除
+            {isDuplicating ? "复制中…" : "复制新建"}
           </Button>
+          {canNormalDelete && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={handleDeleteClick}
+              disabled={isPending}
+            >
+              删除
+            </Button>
+          )}
+          {canShowForceDelete && (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleForceDeleteClick}
+              disabled={isPending || isForceDeleting}
+            >
+              强制删除
+            </Button>
+          )}
           {message && (
             <span
               className={
@@ -253,8 +366,10 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
               <div className="space-y-2 pt-1">
                 <p>删除后将无法恢复。</p>
                 <p className="text-muted-foreground">如果该合同已关联出货、发票、装箱单或收款记录，则不允许删除。</p>
-                {contract.signStatus === "SIGNED" && (
-                  <p className="text-amber-600 font-medium">已签署合同通常不建议删除，是否继续？</p>
+                {isArchivedContract && currentUserRole === "admin" && (
+                  <p className="text-amber-600 font-medium">
+                    该合同已归档，是否确认删除？此操作不可恢复
+                  </p>
                 )}
                 {deleteError && <p className="text-destructive font-medium">{deleteError}</p>}
               </div>
@@ -276,6 +391,57 @@ export function ContractListRow({ contract }: { contract: ContractRow }) {
               disabled={isDeleting}
             >
               {isDeleting ? "删除中…" : "确认删除"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={forceDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setForceDeleteDialogOpen(open);
+          if (!open) {
+            setForceDeleteError(null);
+            setForceDeleteText("");
+          }
+        }}
+      >
+        <DialogContent showClose={true}>
+          <DialogHeader>
+            <DialogTitle>确认强制删除合同？</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-1">
+                <p>
+                  该操作将同时删除此合同及其关联的业务数据（如商业发票、装箱单、出货记录、收款记录等），删除后不可恢复。请再次确认是否继续。
+                </p>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">请输入 DELETE 后才能确认：</p>
+                  <Input
+                    value={forceDeleteText}
+                    onChange={(e) => setForceDeleteText(e.target.value)}
+                    placeholder="DELETE"
+                    autoComplete="off"
+                  />
+                </div>
+                {forceDeleteError && <p className="text-destructive font-medium">{forceDeleteError}</p>}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setForceDeleteDialogOpen(false)}
+              disabled={isForceDeleting}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleForceDeleteConfirm}
+              disabled={isForceDeleting || forceDeleteText !== "DELETE"}
+            >
+              {isForceDeleting ? "强制删除中…" : "确认强制删除"}
             </Button>
           </DialogFooter>
         </DialogContent>

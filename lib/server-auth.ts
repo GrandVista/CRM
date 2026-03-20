@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -55,6 +56,33 @@ export async function getAuthUser(request: Request): Promise<AuthUser | null> {
     name: user.name,
     role: user.role,
   };
+}
+
+/** 从 token 字符串解析当前用户 */
+export async function getAuthUserByToken(token: string | null | undefined): Promise<AuthUser | null> {
+  if (!token) return null;
+  const payload = verifyToken(token);
+  if (!payload?.sub) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { id: true, email: true, name: true, role: true, isActive: true },
+  });
+  if (!user || !user.isActive) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+  };
+}
+
+/** 在 Server Component / Server Action 中从 cookie 读取当前用户 */
+export async function getCurrentAuthUser(): Promise<AuthUser | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value ?? null;
+  return getAuthUserByToken(token);
 }
 
 /**

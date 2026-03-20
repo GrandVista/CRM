@@ -18,14 +18,14 @@ function getUploadDir(contractId: string): string {
 /** GET: 列出合同附件，支持 ?category=SIGNED_CONTRACT */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ contractId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { contractId } = await params;
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category") ?? undefined;
 
   const list = await prisma.contractAttachment.findMany({
-    where: { contractId, ...(category ? { category } : {}) },
+    where: { contractId: id, ...(category ? { category } : {}) },
     orderBy: { uploadedAt: "desc" },
   });
   return NextResponse.json(list);
@@ -34,12 +34,12 @@ export async function GET(
 /** POST: 上传已签署合同 PDF */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ contractId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { contractId } = await params;
+  const { id } = await params;
 
   const contract = await prisma.contract.findUnique({
-    where: { id: contractId },
+    where: { id },
     select: { id: true },
   });
   if (!contract) {
@@ -70,7 +70,7 @@ export async function POST(
 
   const ext = path.extname(file.name) || ".pdf";
   const storedName = `${randomUUID()}${ext}`;
-  const uploadDir = getUploadDir(contractId);
+  const uploadDir = getUploadDir(id);
   const filePath = path.join(uploadDir, storedName);
 
   try {
@@ -82,11 +82,11 @@ export async function POST(
     return NextResponse.json({ error: "文件保存失败" }, { status: 500 });
   }
 
-  const fileUrl = `/uploads/contracts/${contractId}/${storedName}`;
+  const fileUrl = `/uploads/contracts/${id}/${storedName}`;
 
   const attachment = await prisma.contractAttachment.create({
     data: {
-      contractId,
+      contractId: id,
       fileName: file.name,
       fileUrl,
       fileType: file.type,
