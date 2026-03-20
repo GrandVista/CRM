@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/server-auth";
 
 export async function DELETE(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await requireRole(request, ["admin"]);
@@ -15,7 +15,7 @@ export async function DELETE(
       );
     }
 
-    const contractId = context.params.id;
+    const { id: contractId } = await context.params;
     const existing = await prisma.contract.findUnique({
       where: { id: contractId },
       select: { id: true, contractNo: true },
