@@ -70,10 +70,13 @@ export function buildCommercialInvoicePdfBuffer(data: CommercialInvoicePdfInput)
     setEmbeddedPdfFontBold(doc).fontSize(16).text("COMMERCIAL INVOICE", M, doc.y, { width: innerW, align: "center" });
     doc.moveDown(0.55);
 
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, doc.y, { continued: true });
+    const buyerLabel = "Buyer: ";
+    setEmbeddedPdfFontBold(doc).fontSize(9);
+    const buyerLabelW = doc.widthOfString(buyerLabel);
+    setEmbeddedPdfFontBold(doc).fontSize(9).text(buyerLabel, M, doc.y);
     setEmbeddedPdfFontRegular(doc)
       .fontSize(10)
-      .text(data.buyer.name, doc.x, doc.y, { width: M + innerW - doc.x });
+      .text(data.buyer.name, M + buyerLabelW, doc.y, { width: innerW - buyerLabelW });
     doc.moveDown(0.2);
     pdfWriteBoldLabelThenValue(doc, M, innerW, "Address:", data.buyer.address || "—", 8);
     doc.moveDown(0.25);
