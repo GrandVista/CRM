@@ -324,9 +324,11 @@ export function buildContractPdfBuffer(data: ContractPdfInput): Promise<Buffer> 
     /* ----- Signatures（与网页 border-t + 两列签字区） ----- */
     ensureVerticalSpace(doc, 72);
     const sigY = doc.y;
-    setEmbeddedPdfFontBold(doc).fontSize(8).fillColor("#666666").text("Buyer Signature", M, sigY, { width: innerW / 2 - 12 });
+    doc.fillColor("#666666");
+    setEmbeddedPdfFontBold(doc).fontSize(8).text("Buyer Signature", M, sigY, { width: innerW / 2 - 12 });
     setEmbeddedPdfFontBold(doc).fontSize(8).text("Seller Signature", M + innerW / 2, sigY, { width: innerW / 2 - 12 });
-    setEmbeddedPdfFontRegular(doc).fillColor("#000000");
+    doc.fillColor("#000000");
+    setEmbeddedPdfFontRegular(doc);
     const lineY = sigY + 22;
     doc.moveTo(M, lineY).lineTo(M + innerW / 2 - 16, lineY).stroke();
     doc.moveTo(M + innerW / 2, lineY).lineTo(M + innerW - 8, lineY).stroke();
