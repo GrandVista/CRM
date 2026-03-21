@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/server-auth";
+import { getResinDeliveryNoteShipmentWithOrder } from "@/lib/resin-delivery-note-shipment";
 import { buildResinDeliveryNotePdfBuffer } from "@/lib/resin-delivery-note-pdf";
 import { parsePdfDisposition } from "@/lib/pdf/disposition";
 import { pdfBufferNextResponse } from "@/lib/pdf/response";
@@ -21,10 +21,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const disposition = parsePdfDisposition(searchParams);
 
-    const shipment = await prisma.resinOrderShipment.findUnique({
-      where: { id: shipmentId },
-      include: { resinOrder: true },
-    });
+    const shipment = await getResinDeliveryNoteShipmentWithOrder(shipmentId);
     if (!shipment) {
       return NextResponse.json({ success: false, message: "找不到发货记录" }, { status: 404 });
     }

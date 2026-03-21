@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { ResinDeliveryNotePrintView } from "@/components/resin-orders/resin-delivery-note-print-view";
+import { getResinDeliveryNoteShipmentWithOrder } from "@/lib/resin-delivery-note-shipment";
 
 export default async function ResinDeliveryNotePrintPage({
   params,
@@ -8,10 +8,7 @@ export default async function ResinDeliveryNotePrintPage({
   params: Promise<{ shipmentId: string }>;
 }) {
   const { shipmentId } = await params;
-  const shipment = await prisma.resinOrderShipment.findUnique({
-    where: { id: shipmentId },
-    include: { resinOrder: true },
-  });
+  const shipment = await getResinDeliveryNoteShipmentWithOrder(shipmentId);
   if (!shipment) notFound();
 
   const order = shipment.resinOrder;
