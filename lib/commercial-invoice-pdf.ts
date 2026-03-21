@@ -70,8 +70,13 @@ export function buildCommercialInvoicePdfBuffer(data: CommercialInvoicePdfInput)
     setEmbeddedPdfFontBold(doc).fontSize(16).text("COMMERCIAL INVOICE", M, doc.y, { width: innerW, align: "center" });
     doc.moveDown(0.55);
 
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, doc.y, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(10).text(data.buyer.name || "—", { width: innerW });
+    const buyerY = doc.y;
+    /** 9pt「Buyer: 」+ 间距的固定预留（pt），避免依赖 continued / 双参 text 重载 */
+    const BUYER_LABEL_RESERVE_PT = 45;
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, buyerY);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(10)
+      .text(data.buyer.name || "—", M + BUYER_LABEL_RESERVE_PT, buyerY, { width: innerW - BUYER_LABEL_RESERVE_PT });
     doc.moveDown(0.2);
     pdfWriteBoldLabelThenValue(doc, M, innerW, "Address:", data.buyer.address || "—", 8);
     doc.moveDown(0.25);
