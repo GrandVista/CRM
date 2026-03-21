@@ -118,7 +118,8 @@ function drawLogoWithCrop(
 }
 
 /**
- * 统一抬头：左上角 Logo（可裁剪白边）+ 正下方英文公司名（左对齐），并推进 `doc.y` / `doc.x`。
+ * 统一抬头：左上角 Logo（可裁剪白边）+ 正下方英文公司名（左对齐），并推进 `doc.y`。
+ * 后续绘制请始终显式传入左边距 `marginLeft`，勿依赖 `doc.x`。
  * Contract / CI / PL 共用。
  */
 export function drawPdfCompanyLetterhead(doc: PdfDoc, marginLeft: number, innerWidth: number): void {
@@ -143,7 +144,6 @@ export function drawPdfCompanyLetterhead(doc: PdfDoc, marginLeft: number, innerW
   const nameH = approximateWrappedTextHeight(PDF_COMPANY_EN_NAME, innerWidth, PDF_COMPANY_EN_FONT_SIZE);
   doc.text(PDF_COMPANY_EN_NAME, marginLeft, nameY, { width: innerWidth });
   doc.y = nameY + nameH + PDF_HEADER_GAP_AFTER_LETTERHEAD_PT;
-  doc.x = marginLeft;
 }
 
 /**
