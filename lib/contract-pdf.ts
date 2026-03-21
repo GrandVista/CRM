@@ -116,7 +116,11 @@ export function buildContractPdfBuffer(data: ContractPdfInput): Promise<Buffer> 
     doc.moveDown(0.45);
 
     /* ----- 标题 ----- */
-    setEmbeddedPdfFontBold(doc).fontSize(18).text("SALE CONTRACT", { width: innerW, align: "center" });
+    const titleY = doc.y;
+    setEmbeddedPdfFontBold(doc).fontSize(18).text("SALE CONTRACT", M, titleY, {
+      width: innerW,
+      align: "center",
+    });
     doc.moveDown(0.55);
 
     /* ----- Buyer 信息框（与网页 bordered p-4 grid 结构一致） ----- */
@@ -127,23 +131,33 @@ export function buildContractPdfBuffer(data: ContractPdfInput): Promise<Buffer> 
     const colHalf = (textW - 10) / 2;
 
     const bx = M + boxPad;
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", bx, ty, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(data.buyer.name || "—", { width: textW });
+    /** 标签占位（pt），与 CI Buyer 行一致，避免 continued / 双参 text */
+    const buyerLineLabelReserve = 45;
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", bx, ty);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(9)
+      .text(data.buyer.name || "—", bx + buyerLineLabelReserve, ty, { width: textW - buyerLineLabelReserve });
     ty = doc.y + 6;
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("ADD: ", bx, ty, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(data.buyer.address || "—", { width: textW });
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("ADD: ", bx, ty);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(9)
+      .text(data.buyer.address || "—", bx + buyerLineLabelReserve, ty, { width: textW - buyerLineLabelReserve });
     ty = doc.y + 6;
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("TEL: ", bx, ty, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(data.buyer.phone || "—", { width: textW });
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("TEL: ", bx, ty);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(9)
+      .text(data.buyer.phone || "—", bx + buyerLineLabelReserve, ty, { width: textW - buyerLineLabelReserve });
     ty = doc.y + 8;
     const yPair = ty;
     const xR = bx + colHalf + 10;
     const lwNo = 34;
     const lwDate = 36;
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("No.: ", bx, yPair, { continued: true });
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("No.: ", bx, yPair);
     setEmbeddedPdfFontRegular(doc).fontSize(9).text(data.contractNo, bx + lwNo, yPair, { width: colHalf - lwNo - 4 });
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Date: ", xR, yPair, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(formatDate(data.contractDate), xR + lwDate, yPair, { width: colHalf - lwDate - 4 });
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Date: ", xR, yPair);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(9)
+      .text(formatDate(data.contractDate), xR + lwDate, yPair, { width: colHalf - lwDate - 4 });
     ty = Math.max(doc.y, yPair + 14);
 
     const boxH = ty - boxTop + boxPad;
@@ -242,21 +256,32 @@ export function buildContractPdfBuffer(data: ContractPdfInput): Promise<Buffer> 
 
     if (!isResin) {
       const xTot = M + totPad;
-      setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Rolls: ", xTot, tyy, { continued: true });
-      setEmbeddedPdfFontRegular(doc).fontSize(9).text(String(data.totalRolls));
+      const lwRolls = 78;
+      const lwWeight = 92;
+      setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Rolls: ", xTot, tyy);
+      setEmbeddedPdfFontRegular(doc)
+        .fontSize(9)
+        .text(String(data.totalRolls), xTot + lwRolls, tyy, { width: totInnerW - lwRolls });
       tyy = doc.y + 4;
-      setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Weight: ", xTot, tyy, { continued: true });
-      setEmbeddedPdfFontRegular(doc).fontSize(9).text(formatWeight(data.totalWeight));
+      setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Weight: ", xTot, tyy);
+      setEmbeddedPdfFontRegular(doc)
+        .fontSize(9)
+        .text(formatWeight(data.totalWeight), xTot + lwWeight, tyy, { width: totInnerW - lwWeight });
       tyy = doc.y + 6;
     }
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Amount: ", M + totPad, tyy, { continued: true });
+    const xTotBase = M + totPad;
+    const lwTotAmt = 92;
+    const lwTotWords = 102;
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Total Amount: ", xTotBase, tyy);
     setEmbeddedPdfFontRegular(doc)
       .fontSize(9)
-      .text(formatUsdPdf(data.totalAmount, data.currency), { width: totInnerW });
+      .text(formatUsdPdf(data.totalAmount, data.currency), xTotBase + lwTotAmt, tyy, { width: totInnerW - lwTotAmt });
     tyy = doc.y + 4;
     const words = amountToWords(data.totalAmount, data.currency);
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Total in Words: ", M + totPad, tyy, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(words, { width: totInnerW });
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Total in Words: ", xTotBase, tyy);
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(9)
+      .text(words, xTotBase + lwTotWords, tyy, { width: totInnerW - lwTotWords });
     tyy = doc.y + 4;
     if (data.terms.moreOrLessPercent != null && data.terms.moreOrLessPercent >= 0) {
       setEmbeddedPdfFontRegular(doc)
