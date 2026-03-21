@@ -4,7 +4,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { getResinOrderById } from "@/lib/actions/resin-orders";
+import { getResinOrderById, type ResinOrderPaymentRow, type ResinOrderShipmentRow } from "@/lib/actions/resin-orders";
 import { formatAmount } from "@/lib/numbers";
 import { formatDate, toDateInputValue } from "@/lib/utils/date";
 import { RESIN_DELIVERY_STATUS_LABEL, RESIN_PAYMENT_STATUS_LABEL } from "@/lib/constants/resin-order-status";
@@ -84,7 +84,7 @@ export default async function ResinOrderDetailPage({
                       <TableCell colSpan={9} className="text-center text-muted-foreground py-6">暂无发货记录</TableCell>
                     </TableRow>
                   ) : (
-                    order.shipments.map((s) => (
+                    order.shipments.map((s: ResinOrderShipmentRow) => (
                       <TableRow key={s.id}>
                         <TableCell className="font-medium whitespace-nowrap">{s.deliveryNo}</TableCell>
                         <TableCell className="whitespace-nowrap">{formatDate(s.shipmentDate)}</TableCell>
@@ -163,7 +163,7 @@ export default async function ResinOrderDetailPage({
                       <TableCell colSpan={5} className="text-center text-muted-foreground py-6">暂无收款记录</TableCell>
                     </TableRow>
                   ) : (
-                    order.payments.map((p) => (
+                    order.payments.map((p: ResinOrderPaymentRow) => (
                       <TableRow key={p.id}>
                         <TableCell>{formatDate(p.paymentDate)}</TableCell>
                         <TableCell>{formatAmount(p.amount, order.currency)}</TableCell>

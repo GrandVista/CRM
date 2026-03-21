@@ -3,7 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAuthUser } from "@/lib/server-auth";
-import type { ResinDeliveryStatus, ResinPaymentStatus } from "@prisma/client";
+import type { Prisma, ResinDeliveryStatus, ResinPaymentStatus } from "@prisma/client";
+
+/** `getResinOrderById` 完整返回（含 customer / shipments / payments） */
+const resinOrderByIdInclude = {
+  customer: true,
+  shipments: { orderBy: { shipmentDate: "desc" as const } },
+  payments: { orderBy: { paymentDate: "desc" as const } },
+} satisfies Prisma.ResinOrderInclude;
+
+export type ResinOrderDetail = Prisma.ResinOrderGetPayload<{ include: typeof resinOrderByIdInclude }>;
+export type ResinOrderShipmentRow = ResinOrderDetail["shipments"][number];
+export type ResinOrderPaymentRow = ResinOrderDetail["payments"][number];
 
 function requireAdminRole(role: string) {
   if (role !== "admin") throw new Error("仅管理员可执行该操作");
@@ -150,14 +161,10 @@ export async function getResinOrders(params?: {
   });
 }
 
-export async function getResinOrderById(id: string) {
+export async function getResinOrderById(id: string): Promise<ResinOrderDetail | null> {
   return prisma.resinOrder.findUnique({
     where: { id },
-    include: {
-      customer: true,
-      shipments: { orderBy: { shipmentDate: "desc" } },
-      payments: { orderBy: { paymentDate: "desc" } },
-    },
+    include: resinOrderByIdInclude,
   });
 }
 
