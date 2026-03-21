@@ -71,12 +71,10 @@ export function buildCommercialInvoicePdfBuffer(data: CommercialInvoicePdfInput)
     doc.moveDown(0.55);
 
     const buyerY = doc.y;
-    /** 9pt「Buyer: 」+ 间距的固定预留（pt），避免依赖 continued / 双参 text 重载 */
-    const BUYER_LABEL_RESERVE_PT = 45;
     setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, buyerY);
-    setEmbeddedPdfFontRegular(doc)
-      .fontSize(10)
-      .text(data.buyer.name || "—", M + BUYER_LABEL_RESERVE_PT, buyerY, { width: innerW - BUYER_LABEL_RESERVE_PT });
+    setEmbeddedPdfFontRegular(doc).fontSize(10).text(data.buyer.name || "-", M + 45, buyerY, {
+      width: innerW - 45,
+    });
     doc.moveDown(0.2);
     pdfWriteBoldLabelThenValue(doc, M, innerW, "Address:", data.buyer.address || "—", 8);
     doc.moveDown(0.25);
