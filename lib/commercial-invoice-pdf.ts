@@ -71,7 +71,9 @@ export function buildCommercialInvoicePdfBuffer(data: CommercialInvoicePdfInput)
     doc.moveDown(0.55);
 
     setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, doc.y, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(10).text(data.buyer.name, { width: innerW });
+    setEmbeddedPdfFontRegular(doc)
+      .fontSize(10)
+      .text(data.buyer.name, doc.x, doc.y, { width: M + innerW - doc.x });
     doc.moveDown(0.2);
     pdfWriteBoldLabelThenValue(doc, M, innerW, "Address:", data.buyer.address || "—", 8);
     doc.moveDown(0.25);
