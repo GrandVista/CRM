@@ -97,7 +97,7 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
             onChange={(e) => onCustomerChange(e.target.value)}
           >
             <option value="">请选择客户</option>
-            {customers.map((c) => (
+            {customers.map((c: CustomerOption) => (
               <option key={c.id} value={c.id}>
                 {c.shortName || c.nameEn || c.nameCn || c.id}
               </option>

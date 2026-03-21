@@ -16,6 +16,14 @@ export type ResinOrderDetail = Prisma.ResinOrderGetPayload<{ include: typeof res
 export type ResinOrderShipmentRow = ResinOrderDetail["shipments"][number];
 export type ResinOrderPaymentRow = ResinOrderDetail["payments"][number];
 
+/** `getResinOrders` 列表行（含 customer 摘要、_count） */
+const resinOrderListInclude = {
+  customer: { select: { id: true, shortName: true, nameEn: true, nameCn: true } },
+  _count: { select: { shipments: true, payments: true } },
+} as const satisfies Prisma.ResinOrderInclude;
+
+export type ResinOrderListRow = Prisma.ResinOrderGetPayload<{ include: typeof resinOrderListInclude }>;
+
 function requireAdminRole(role: string) {
   if (role !== "admin") throw new Error("仅管理员可执行该操作");
 }
@@ -138,7 +146,7 @@ export async function getResinOrders(params?: {
   search?: string;
   deliveryStatus?: string;
   paymentStatus?: string;
-}) {
+}): Promise<ResinOrderListRow[]> {
   const where: Record<string, unknown> = {};
   if (params?.search) {
     where.OR = [
@@ -154,10 +162,7 @@ export async function getResinOrders(params?: {
   return prisma.resinOrder.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: {
-      customer: { select: { id: true, shortName: true, nameEn: true, nameCn: true } },
-      _count: { select: { shipments: true, payments: true } },
-    },
+    include: resinOrderListInclude,
   });
 }
 

@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentAuthUser } from "@/lib/server-auth";
-import { getResinOrders } from "@/lib/actions/resin-orders";
+import { getResinOrders, type ResinOrderListRow } from "@/lib/actions/resin-orders";
 import { formatAmount } from "@/lib/numbers";
 import { formatDate } from "@/lib/utils/date";
 import { RESIN_DELIVERY_STATUS_LABEL, RESIN_PAYMENT_STATUS_LABEL } from "@/lib/constants/resin-order-status";
@@ -64,7 +64,7 @@ export default async function ResinOrdersPage({
                   </TableCell>
                 </TableRow>
               ) : (
-                list.map((row) => {
+                list.map((row: ResinOrderListRow) => {
                   const canDeleteDirectly = row._count.shipments === 0 && row._count.payments === 0 && isAdmin;
                   return (
                     <TableRow key={row.id}>

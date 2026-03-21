@@ -33,7 +33,7 @@ export function ResinShipmentPersonInput({
         placeholder="可选下拉或手输"
       />
       <datalist id={listId}>
-        {options.map((o) => (
+        {options.map((o: string) => (
           <option key={o} value={o} />
         ))}
       </datalist>

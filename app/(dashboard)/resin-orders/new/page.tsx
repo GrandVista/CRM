@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
-import { getCustomers } from "@/lib/actions/customers";
+import { getCustomers, type CustomerListRow } from "@/lib/actions/customers";
 import { createResinOrder } from "@/lib/actions/resin-orders";
 import { ResinOrderForm } from "@/components/resin-orders/resin-order-form";
 import { redirect } from "next/navigation";
@@ -24,7 +24,7 @@ export default async function NewResinOrderPage() {
       </Header>
       <div className="p-6">
         <ResinOrderForm
-          customers={customers.map((c) => ({
+          customers={customers.map((c: CustomerListRow) => ({
             id: c.id,
             shortName: c.shortName,
             nameEn: c.nameEn,
