@@ -2,7 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { CustomerStatus } from "@prisma/client";
+import { CustomerStatus, type Prisma } from "@prisma/client";
+
+/** `getCustomers` 单条记录类型（含 _count），供列表 / 下拉等 map 使用 */
+export type CustomerListRow = Prisma.CustomerGetPayload<{
+  include: {
+    _count: { select: { quotations: true; contracts: true; payments: true } };
+  };
+}>;
+
+const customerListInclude = {
+  _count: { select: { quotations: true, contracts: true, payments: true } },
+} as const satisfies Prisma.CustomerInclude;
 
 export type CustomerFormData = {
   customerCode: string;
@@ -31,7 +42,7 @@ export type CustomerFormData = {
   remark?: string;
 };
 
-export async function getCustomers(params?: { search?: string; status?: string }) {
+export async function getCustomers(params?: { search?: string; status?: string }): Promise<CustomerListRow[]> {
   const where: Record<string, unknown> = {};
   if (params?.search) {
     where.OR = [
@@ -48,9 +59,7 @@ export async function getCustomers(params?: { search?: string; status?: string }
   return prisma.customer.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { quotations: true, contracts: true, payments: true } },
-    },
+    include: customerListInclude,
   });
 }
 
