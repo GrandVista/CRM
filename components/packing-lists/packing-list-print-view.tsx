@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 
 function formatQty(value: number): string {
   return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -77,11 +78,17 @@ export function PackingListPrintView(props: Props) {
 
   return (
     <>
-      <div className="sticky top-0 z-10 flex-shrink-0 border-b bg-card px-4 py-3 flex items-center gap-3 print:hidden">
+      <div className="sticky top-0 z-10 flex-shrink-0 border-b bg-card px-4 py-3 flex flex-wrap items-center gap-3 print:hidden">
         <Button variant="outline" size="sm" asChild>
           <Link href={`/cl/${packingListId}`}>返回</Link>
         </Button>
-        <Button size="sm" onClick={() => window.print()}>打印 / 导出 PDF</Button>
+        <PdfActionButtons
+          previewUrl={`/api/packing-lists/${packingListId}/pdf`}
+          downloadUrl={`/api/packing-lists/${packingListId}/pdf?download=1`}
+        />
+        <Button variant="secondary" size="sm" onClick={() => window.print()}>
+          打印网页
+        </Button>
       </div>
       <div className="flex justify-center px-6 py-8 print:py-4 bg-gray-100 print:bg-transparent">
         <article className="bg-white text-black shadow-md rounded-md print:shadow-none max-w-[210mm] w-full box-border p-6 md:p-8 text-sm">

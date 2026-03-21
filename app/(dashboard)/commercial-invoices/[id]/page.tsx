@@ -15,6 +15,7 @@ import { getCommercialInvoiceById } from "@/lib/actions/commercial-invoices";
 import { getCustomerDisplayName } from "@/lib/utils";
 import { formatDate } from "@/lib/utils/date";
 import { formatAmount } from "@/lib/numbers";
+import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 
 export default async function CommercialInvoiceDetailPage({
   params,
@@ -33,9 +34,13 @@ export default async function CommercialInvoiceDetailPage({
         <Button asChild variant="outline">
           <Link href={`/commercial-invoices/${id}/edit`}>编辑</Link>
         </Button>
+        <PdfActionButtons
+          previewUrl={`/api/commercial-invoices/${id}/pdf`}
+          downloadUrl={`/api/commercial-invoices/${id}/pdf?download=1`}
+        />
         <Button asChild variant="outline" size="sm">
           <Link href={`/commercial-invoices/${id}/print`} target="_blank" rel="noopener noreferrer">
-            打印 / 导出 PDF
+            打印网页
           </Link>
         </Button>
         <Button asChild variant="outline">

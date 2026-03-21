@@ -21,6 +21,22 @@ export function getBearerToken(request: Request): string | null {
   return auth.slice(7).trim() || null;
 }
 
+/** 从 Bearer 或 Cookie `token` 读取 JWT（新窗口打开 PDF 等场景仅有 Cookie） */
+export function getTokenFromRequest(request: Request): string | null {
+  const bearer = getBearerToken(request);
+  if (bearer) return bearer;
+  const raw = request.headers.get("cookie");
+  if (!raw) return null;
+  for (const part of raw.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    const k = part.slice(0, idx).trim();
+    if (k !== "token") continue;
+    return decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return null;
+}
+
 /** 校验 token，返回 payload；无效或过期返回 null */
 export function verifyToken(token: string): JwtPayload | null {
   if (!JWT_SECRET) return null;
@@ -37,7 +53,7 @@ export function verifyToken(token: string): JwtPayload | null {
  * 无 token 或 token 无效时返回 null。
  */
 export async function getAuthUser(request: Request): Promise<AuthUser | null> {
-  const token = getBearerToken(request);
+  const token = getTokenFromRequest(request);
   if (!token) return null;
 
   const payload = verifyToken(token);

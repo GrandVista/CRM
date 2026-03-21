@@ -23,6 +23,7 @@ import { ContractStatusForm } from "@/components/contracts/contract-status-form"
 import { ContractClauseRow } from "@/components/contracts/contract-clause-row";
 import { CONTRACT_ATTACHMENT_CATEGORY } from "@/lib/contract-attachment-constants";
 import { getCurrentAuthUser } from "@/lib/server-auth";
+import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 
 export default async function ContractDetailPage({
   params,
@@ -50,9 +51,13 @@ export default async function ContractDetailPage({
           isArchived={isArchived}
           currentUserRole={currentUserRole}
         />
+        <PdfActionButtons
+          previewUrl={`/api/contracts/${id}/pdf`}
+          downloadUrl={`/api/contracts/${id}/pdf?download=1`}
+        />
         <Button asChild variant="outline" size="sm">
           <Link href={`/contracts/${id}/print`} target="_blank" rel="noopener noreferrer">
-            打印 / 导出 PDF
+            打印网页
           </Link>
         </Button>
         <Button asChild variant="outline">

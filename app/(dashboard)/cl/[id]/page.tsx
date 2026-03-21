@@ -14,6 +14,7 @@ import {
 import { getPackingListById } from "@/lib/actions/packing-lists";
 import { getCustomerDisplayName } from "@/lib/utils";
 import { formatDate } from "@/lib/utils/date";
+import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 
 export default async function ClDetailPage({
   params,
@@ -32,8 +33,14 @@ export default async function ClDetailPage({
         <Button asChild variant="outline">
           <Link href={`/cl/${id}/edit`}>编辑</Link>
         </Button>
+        <PdfActionButtons
+          previewUrl={`/api/packing-lists/${id}/pdf`}
+          downloadUrl={`/api/packing-lists/${id}/pdf?download=1`}
+        />
         <Button asChild variant="outline" size="sm">
-          <Link href={`/cl/${id}/print`} target="_blank" rel="noopener noreferrer">打印 / 导出 PDF</Link>
+          <Link href={`/cl/${id}/print`} target="_blank" rel="noopener noreferrer">
+            打印网页
+          </Link>
         </Button>
         <Button asChild variant="outline">
           <Link href="/cl">返回列表</Link>

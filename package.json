@@ -10,9 +10,12 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "fonts:pdf": "node scripts/download-pdf-font.mjs",
+    "logo:trim": "node scripts/trim-logo.mjs"
   },
   "dependencies": {
+    "@fontsource/noto-sans-sc": "^5.2.9",
     "@prisma/client": "^6.0.0",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-dropdown-menu": "^2.1.2",
@@ -21,6 +24,7 @@
     "@radix-ui/react-separator": "^1.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.1",
+    "@types/pdfkit": "^0.17.5",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -45,6 +49,7 @@
     "eslint": "^9.15.0",
     "eslint-config-next": "15.0.3",
     "prisma": "^6.0.0",
+    "sharp": "^0.33.5",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.6.3"
   },

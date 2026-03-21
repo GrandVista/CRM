@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 import { ContractDocument } from "@/components/contracts/contract-document";
 import type {
   ContractDocumentSeller,
@@ -43,12 +44,16 @@ export function ContractPrintView({
   return (
     <>
       {/* Top toolbar (screen only) */}
-      <div className="sticky top-0 z-10 flex-shrink-0 border-b bg-card px-4 py-3 flex items-center gap-3 print:hidden">
+      <div className="sticky top-0 z-10 flex-shrink-0 border-b bg-card px-4 py-3 flex flex-wrap items-center gap-3 print:hidden">
         <Button variant="outline" size="sm" asChild>
           <Link href={`/contracts/${contractId}`}>返回合同</Link>
         </Button>
-        <Button size="sm" onClick={() => window.print()}>
-          打印 / 导出 PDF
+        <PdfActionButtons
+          previewUrl={`/api/contracts/${contractId}/pdf`}
+          downloadUrl={`/api/contracts/${contractId}/pdf?download=1`}
+        />
+        <Button variant="secondary" size="sm" onClick={() => window.print()}>
+          打印网页
         </Button>
       </div>
 
