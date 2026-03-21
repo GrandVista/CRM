@@ -72,14 +72,29 @@ export type ContractPdfInput = {
 /** 对齐 components/contracts/contract-document.tsx 中 TERMS_LABEL_WIDTH ≈ 14rem */
 const TERMS_LABEL_W = 152;
 
+/**
+ * 粗略估算换行后文字高度（pt），不调用 PDFKit `heightOfString`（部分项目 TS 定义不含该方法）。
+ */
+function approximateWrappedTextHeight(text: string, widthPt: number, fontSizePt: number): number {
+  const lineHeight = fontSizePt * 1.25;
+  const approxCharWidth = fontSizePt * 0.52;
+  const charsPerLine = Math.max(4, Math.floor(widthPt / approxCharWidth));
+  let totalLines = 0;
+  for (const para of text.split("\n")) {
+    const trimmed = para.length ? para : " ";
+    totalLines += Math.max(1, Math.ceil(trimmed.length / charsPerLine));
+  }
+  return Math.max(lineHeight, totalLines * lineHeight);
+}
+
 function termClause(doc: PdfDoc, M: number, innerW: number, label: string, value: string): void {
   const pad = 8;
   const v = value?.trim() || "—";
   const valueW = innerW - pad * 2 - TERMS_LABEL_W - 8;
   setEmbeddedPdfFontBold(doc).fontSize(8);
-  const hLabel = doc.heightOfString(label, { width: TERMS_LABEL_W });
+  const hLabel = approximateWrappedTextHeight(label, TERMS_LABEL_W, 8);
   setEmbeddedPdfFontRegular(doc).fontSize(8);
-  const hVal = doc.heightOfString(v, { width: valueW });
+  const hVal = approximateWrappedTextHeight(v, valueW, 8);
   const blockH = Math.max(hLabel, hVal, 12) + 4;
   ensureVerticalSpace(doc, blockH);
   const y0 = doc.y;
@@ -324,10 +339,8 @@ export function buildContractPdfBuffer(data: ContractPdfInput): Promise<Buffer> 
     /* ----- Signatures（与网页 border-t + 两列签字区） ----- */
     ensureVerticalSpace(doc, 72);
     const sigY = doc.y;
-    doc.fillColor("#666666");
     setEmbeddedPdfFontBold(doc).fontSize(8).text("Buyer Signature", M, sigY, { width: innerW / 2 - 12 });
     setEmbeddedPdfFontBold(doc).fontSize(8).text("Seller Signature", M + innerW / 2, sigY, { width: innerW / 2 - 12 });
-    doc.fillColor("#000000");
     setEmbeddedPdfFontRegular(doc);
     const lineY = sigY + 22;
     doc.moveTo(M, lineY).lineTo(M + innerW / 2 - 16, lineY).stroke();
