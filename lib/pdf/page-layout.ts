@@ -14,7 +14,6 @@ export function ensureVerticalSpace(doc: PdfDoc, minHeightPts: number): void {
   if (doc.y + minHeightPts > bottom) {
     doc.addPage();
     reapplyEmbeddedFontRegularAfterNewPage(doc);
-    doc.x = doc.page.margins.left;
     doc.y = doc.page.margins.top;
   }
 }
