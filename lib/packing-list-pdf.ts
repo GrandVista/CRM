@@ -63,11 +63,15 @@ export function buildPackingListPdfBuffer(data: PackingListPdfInput): Promise<Bu
     doc.moveDown(0.3);
 
     ensureVerticalSpace(doc, 40);
-    setEmbeddedPdfFontBold(doc).fontSize(16).text("PACKING LIST", M, doc.y, { width: innerW, align: "center" });
+    const titleY = doc.y;
+    setEmbeddedPdfFontBold(doc).fontSize(16).text("PACKING LIST", M, titleY, { width: innerW, align: "center" });
     doc.moveDown(0.55);
 
-    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, doc.y, { continued: true });
-    setEmbeddedPdfFontRegular(doc).fontSize(10).text(data.buyer.name, { width: innerW });
+    const buyerY = doc.y;
+    setEmbeddedPdfFontBold(doc).fontSize(9).text("Buyer: ", M, buyerY);
+    setEmbeddedPdfFontRegular(doc).fontSize(10).text(data.buyer.name || "-", M + 45, buyerY, {
+      width: innerW - 45,
+    });
     doc.moveDown(0.2);
     pdfWriteBoldLabelThenValue(doc, M, innerW, "Address:", data.buyer.address || "—", 8);
     doc.moveDown(0.25);

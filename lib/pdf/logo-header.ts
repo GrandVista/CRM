@@ -35,6 +35,19 @@ export const PDF_COMPANY_EN_FONT_SIZE = 9;
 /** 英文公司名下方到 Address 等正文的间距（pt） */
 export const PDF_HEADER_GAP_AFTER_LETTERHEAD_PT = 9;
 
+/** 不依赖 PDFKit `heightOfString`（部分 TS 定义不完整） */
+function approximateWrappedTextHeight(text: string, widthPt: number, fontSizePt: number): number {
+  const lineHeight = fontSizePt * 1.25;
+  const approxCharWidth = fontSizePt * 0.52;
+  const charsPerLine = Math.max(4, Math.floor(widthPt / approxCharWidth));
+  let totalLines = 0;
+  for (const para of text.split("\n")) {
+    const trimmed = para.length ? para : " ";
+    totalLines += Math.max(1, Math.ceil(trimmed.length / charsPerLine));
+  }
+  return Math.max(lineHeight, totalLines * lineHeight);
+}
+
 /** 读取 PNG IHDR 或 JPEG SOF 的像素尺寸 */
 function readRasterImageDimensions(filePath: string): { width: number; height: number } | null {
   const buf = fs.readFileSync(filePath);
@@ -127,7 +140,7 @@ export function drawPdfCompanyLetterhead(doc: PdfDoc, marginLeft: number, innerW
 
   const nameY = hasLogo ? y0 + logoRenderedHeightPt + PDF_LOGO_GAP_TO_NAME_PT : y0;
   setEmbeddedPdfFontRegular(doc).fontSize(PDF_COMPANY_EN_FONT_SIZE);
-  const nameH = doc.heightOfString(PDF_COMPANY_EN_NAME, { width: innerWidth });
+  const nameH = approximateWrappedTextHeight(PDF_COMPANY_EN_NAME, innerWidth, PDF_COMPANY_EN_FONT_SIZE);
   doc.text(PDF_COMPANY_EN_NAME, marginLeft, nameY, { width: innerWidth });
   doc.y = nameY + nameH + PDF_HEADER_GAP_AFTER_LETTERHEAD_PT;
   doc.x = marginLeft;
@@ -149,9 +162,16 @@ export function pdfWriteBoldLabelThenValue(
   const v = value?.trim() ? value.trim() : "—";
   const labelPart = `${label.endsWith(":") ? label : `${label}:`} `;
   setEmbeddedPdfFontRegular(doc).fontSize(fontSize);
-  const estH = doc.heightOfString(`${labelPart}${v}`, { width: innerWidth });
+  const estH = approximateWrappedTextHeight(`${labelPart}${v}`, innerWidth, fontSize);
   ensureVerticalSpace(doc, estH + extraSpace);
   const lineY = doc.y;
-  setEmbeddedPdfFontBold(doc).fontSize(fontSize).text(labelPart, marginLeft, lineY, { continued: true });
-  setEmbeddedPdfFontRegular(doc).fontSize(fontSize).text(v, { width: innerWidth });
+  /** 粗体标签近似宽度（pt），避免 continued + `text(value, { width })` 的不兼容签名 */
+  const labelReserve = Math.min(
+    Math.max(Math.ceil(labelPart.length * fontSize * 0.52) + 4, fontSize * 4),
+    innerWidth - 24,
+  );
+  setEmbeddedPdfFontBold(doc).fontSize(fontSize).text(labelPart, marginLeft, lineY);
+  setEmbeddedPdfFontRegular(doc).fontSize(fontSize).text(v, marginLeft + labelReserve, lineY, {
+    width: innerWidth - labelReserve,
+  });
 }
