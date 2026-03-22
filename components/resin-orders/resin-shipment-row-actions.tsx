@@ -32,9 +32,14 @@ export type ResinShipmentRowData = {
   signedDeliveryNoteUrl: string | null;
   signedDeliveryNoteName: string | null;
   arrivalConfirmed: boolean;
+  hasPurchaseOrders: boolean;
+  lines: { purchaseOrderId: string; quantity: number; customerPoNo: string }[];
 };
 
-function toEditInitial(s: ResinShipmentRowData): ResinShipmentEditInitial {
+function toEditInitial(
+  s: ResinShipmentRowData,
+  purchaseOrderOptions: { id: string; customerPoNo: string }[],
+): ResinShipmentEditInitial {
   return {
     id: s.id,
     deliveryNo: s.deliveryNo,
@@ -47,14 +52,19 @@ function toEditInitial(s: ResinShipmentRowData): ResinShipmentEditInitial {
     shipper: s.shipper,
     reviewer: s.reviewer,
     invoicer: s.invoicer,
+    hasPurchaseOrders: s.hasPurchaseOrders,
+    lines: s.lines,
+    purchaseOrderOptions,
   };
 }
 
 export function ResinShipmentRowActions({
   shipment,
+  purchaseOrderOptions,
   isAdmin,
 }: {
   shipment: ResinShipmentRowData;
+  purchaseOrderOptions: { id: string; customerPoNo: string }[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -187,7 +197,7 @@ export function ResinShipmentRowActions({
       <ResinShipmentEditDialog
         open={editOpen}
         onOpenChange={setEditOpen}
-        initial={isAdmin ? toEditInitial(shipment) : null}
+        initial={isAdmin ? toEditInitial(shipment, purchaseOrderOptions) : null}
       />
     </div>
   );

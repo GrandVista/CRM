@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ResinDeliveryNotePrintView } from "@/components/resin-orders/resin-delivery-note-print-view";
 import { getResinDeliveryNoteShipmentWithOrder } from "@/lib/resin-delivery-note-shipment";
+import { buildResinDeliveryNotePdfInputFromShipment } from "@/lib/resin-delivery-note-build";
 
 export default async function ResinDeliveryNotePrintPage({
   params,
@@ -11,35 +12,23 @@ export default async function ResinDeliveryNotePrintPage({
   const shipment = await getResinDeliveryNoteShipmentWithOrder(shipmentId);
   if (!shipment) notFound();
 
-  const order = shipment.resinOrder;
-  const shipmentD = new Date(shipment.shipmentDate);
-  const documentDate = Number.isNaN(shipmentD.getTime()) ? new Date() : shipmentD;
-
-  const orderNoForTable = order.customerPoNo?.trim() || order.orderNo;
-
-  const carrierParts = [shipment.driverName, shipment.vehicleNo, shipment.driverPhone].filter(Boolean);
-  const carrierLine = carrierParts.join(" / ");
-
-  const remarkParts = [shipment.remarks, order.remarks].filter((x) => x && String(x).trim());
-  const remarkLine = remarkParts.length ? remarkParts.join("；") : "";
+  const pdfInput = buildResinDeliveryNotePdfInputFromShipment(shipment);
 
   return (
     <div className="py-6 print:py-0">
       <ResinDeliveryNotePrintView
         shipmentId={shipmentId}
-        deliveryNo={shipment.deliveryNo}
-        documentDate={documentDate}
-        customerName={order.customerName}
-        orderNoForTable={orderNoForTable}
-        productName={order.productName}
-        grade={order.grade ?? ""}
-        unit={order.unit}
-        quantity={shipment.quantity}
-        carrierLine={carrierLine}
-        remarkLine={remarkLine}
-        reviewer={shipment.reviewer ?? ""}
-        invoicer={shipment.invoicer ?? ""}
-        shipper={shipment.shipper ?? ""}
+        deliveryNo={pdfInput.deliveryNo}
+        documentDate={pdfInput.documentDate}
+        customerName={pdfInput.customerName}
+        lines={pdfInput.lines}
+        totalQuantity={pdfInput.totalQuantity}
+        carrierLine={pdfInput.carrierLine}
+        remarkLine={pdfInput.remarkLine}
+        reviewer={pdfInput.reviewer ?? ""}
+        invoicer={pdfInput.invoicer ?? ""}
+        shipper={pdfInput.shipper ?? ""}
+        legacyUndistributed={shipment.items.length === 0 && shipment.quantity > 0}
       />
     </div>
   );

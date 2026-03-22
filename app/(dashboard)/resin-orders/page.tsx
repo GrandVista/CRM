@@ -3,12 +3,15 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCurrentAuthUser } from "@/lib/server-auth";
-import { getResinOrders, type ResinOrderListRow } from "@/lib/actions/resin-orders";
+import { getResinOrders } from "@/lib/actions/resin-orders";
+import type { ResinOrderListRow } from "@/lib/resin-order-prisma";
 import { formatAmount } from "@/lib/numbers";
 import { formatDate } from "@/lib/utils/date";
 import { RESIN_DELIVERY_STATUS_LABEL, RESIN_PAYMENT_STATUS_LABEL } from "@/lib/constants/resin-order-status";
 import { ResinOrdersSearchForm } from "@/components/resin-orders/resin-orders-search-form";
 import { ResinOrderActions } from "@/components/resin-orders/resin-order-actions";
+import { resinMasterAggregateLabel, resinOrderMasterReceivable } from "@/lib/resin-order-metrics";
+import { Badge } from "@/components/ui/badge";
 
 export default async function ResinOrdersPage({
   searchParams,
@@ -41,15 +44,16 @@ export default async function ResinOrdersPage({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>订单编号</TableHead>
-                <TableHead>客户 PO</TableHead>
+                <TableHead>总订单号</TableHead>
                 <TableHead>客户</TableHead>
                 <TableHead>产品</TableHead>
                 <TableHead>牌号</TableHead>
-                <TableHead>数量</TableHead>
+                <TableHead>总量</TableHead>
+                <TableHead>已分配（小单）</TableHead>
                 <TableHead>已发货</TableHead>
                 <TableHead>发货状态</TableHead>
-                <TableHead>总金额</TableHead>
+                <TableHead>汇总</TableHead>
+                <TableHead>订单总额</TableHead>
                 <TableHead>已收款</TableHead>
                 <TableHead>收款状态</TableHead>
                 <TableHead>订单日期</TableHead>
@@ -59,24 +63,44 @@ export default async function ResinOrdersPage({
             <TableBody>
               {list.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={14} className="text-center text-muted-foreground py-8">
                     暂无树脂订单
                   </TableCell>
                 </TableRow>
               ) : (
                 list.map((row: ResinOrderListRow) => {
-                  const canDeleteDirectly = row._count.shipments === 0 && row._count.payments === 0 && isAdmin;
+                  const allocated = row.purchaseOrders.reduce((s, po) => s + po.quantity, 0);
+                  const orderReceivable = resinOrderMasterReceivable(row.quantity, row.unitPrice);
+                  const aggregate = resinMasterAggregateLabel({
+                    quantity: row.quantity,
+                    unitPrice: row.unitPrice,
+                    shippedQuantity: row.shippedQuantity,
+                    paidAmount: row.paidAmount,
+                    purchaseOrders: row.purchaseOrders,
+                  });
+                  const canDeleteDirectly =
+                    row._count.shipments === 0 &&
+                    row._count.payments === 0 &&
+                    row._count.purchaseOrders === 0 &&
+                    isAdmin;
                   return (
                     <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.orderNo}</TableCell>
-                      <TableCell className="text-muted-foreground">{row.customerPoNo?.trim() || "—"}</TableCell>
+                      <TableCell className="font-medium font-mono">{row.orderNo}</TableCell>
                       <TableCell>{row.customerName}</TableCell>
                       <TableCell>{row.productName}</TableCell>
                       <TableCell>{row.grade ?? "-"}</TableCell>
-                      <TableCell>{row.quantity.toFixed(2)} {row.unit}</TableCell>
+                      <TableCell>
+                        {row.quantity.toFixed(2)} {row.unit}
+                      </TableCell>
+                      <TableCell>{allocated.toFixed(2)}</TableCell>
                       <TableCell>{row.shippedQuantity.toFixed(2)}</TableCell>
                       <TableCell>{RESIN_DELIVERY_STATUS_LABEL[row.deliveryStatus]}</TableCell>
-                      <TableCell>{formatAmount(row.totalAmount, row.currency)}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal whitespace-nowrap">
+                          {aggregate}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatAmount(orderReceivable, row.currency)}</TableCell>
                       <TableCell>{formatAmount(row.paidAmount, row.currency)}</TableCell>
                       <TableCell>{RESIN_PAYMENT_STATUS_LABEL[row.paymentStatus]}</TableCell>
                       <TableCell>{formatDate(row.orderDate)}</TableCell>

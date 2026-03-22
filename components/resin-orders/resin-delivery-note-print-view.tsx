@@ -4,24 +4,22 @@ import { formatDate } from "@/lib/utils/date";
 import { PrintButton } from "@/components/ui/print-button";
 import { PdfActionButtons } from "@/components/pdf/pdf-action-buttons";
 import { RESIN_DELIVERY_NOTE_COMPANY_TITLE } from "@/lib/constants/resin-delivery-note-branding";
+import type { ResinDeliveryNotePdfLine } from "@/lib/resin-delivery-note-pdf";
 
 type Props = {
   shipmentId: string;
   deliveryNo: string;
-  /** 显示在「日期」栏：有发货日期用发货日期，否则用打开页时的日期 */
   documentDate: Date;
   customerName: string;
-  orderNoForTable: string;
-  productName: string;
-  grade: string;
-  unit: string;
-  quantity: number;
-  /** 承运备注：司机、车牌等 */
+  lines: ResinDeliveryNotePdfLine[];
+  totalQuantity: number;
   carrierLine: string;
   remarkLine: string;
   reviewer: string;
   invoicer: string;
   shipper: string;
+  /** 旧送货单：无分摊明细，仅总量 */
+  legacyUndistributed?: boolean;
 };
 
 function SignOffCell({ label, value }: { label: string; value: string }) {
@@ -36,25 +34,26 @@ function SignOffCell({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatQty(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
+
 export function ResinDeliveryNotePrintView({
   shipmentId,
   deliveryNo,
   documentDate,
   customerName,
-  orderNoForTable,
-  productName,
-  grade,
-  unit,
-  quantity,
+  lines,
+  totalQuantity,
   carrierLine,
   remarkLine,
   reviewer,
   invoicer,
   shipper,
+  legacyUndistributed,
 }: Props) {
   const dateStr = formatDate(documentDate);
-  const qtyStr = Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(2);
-  const totalStr = qtyStr;
+  const totalStr = formatQty(totalQuantity);
   return (
     <div className="resin-delivery-note-print mx-auto max-w-[210mm] bg-white p-6 text-black print:p-8 print:shadow-none">
       <style>{`
@@ -63,6 +62,12 @@ export function ResinDeliveryNotePrintView({
           @page { size: A4; margin: 12mm; }
         }
       `}</style>
+
+      {legacyUndistributed ? (
+        <p className="mb-3 rounded border border-amber-600 bg-amber-50 px-2 py-1 text-xs text-amber-900 print:hidden">
+          提示：本单为旧数据，未按小订单分摊；表格按主订单信息汇总显示。
+        </p>
+      ) : null}
 
       <p className="text-center text-sm font-semibold tracking-wide mb-2 print:mb-2">
         {RESIN_DELIVERY_NOTE_COMPANY_TITLE}
@@ -97,15 +102,17 @@ export function ResinDeliveryNotePrintView({
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td className="border border-black px-1 py-3 text-center align-middle">1</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">{orderNoForTable}</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">{productName}</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">{grade || "—"}</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">{unit}</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">{qtyStr}</td>
-            <td className="border border-black px-1 py-3 text-center align-middle">—</td>
-          </tr>
+          {lines.map((line: ResinDeliveryNotePdfLine) => (
+            <tr key={line.index}>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.index}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.orderNo}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.productName}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.grade || "—"}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.unit}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{formatQty(line.quantity)}</td>
+              <td className="border border-black px-1 py-3 text-center align-middle">{line.pieces || "—"}</td>
+            </tr>
+          ))}
           <tr>
             <td className="border border-black px-1 py-2 text-center font-medium" colSpan={5}>
               合计
@@ -130,7 +137,6 @@ export function ResinDeliveryNotePrintView({
         </p>
       ) : null}
 
-      {/* 与 PDF 一致：表格/备注下方约 24~28px 后即签字区，避免大块空白 */}
       <div className="mt-7 grid grid-cols-2 gap-y-8 gap-x-6 sm:grid-cols-4 print:grid-cols-4">
         <SignOffCell label="审核" value={reviewer} />
         <SignOffCell label="开票人" value={invoicer} />

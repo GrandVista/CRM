@@ -6,15 +6,22 @@ import {
   setEmbeddedPdfFontRegular,
 } from "@/lib/pdf/fonts";
 
-export type ResinDeliveryNotePdfInput = {
-  deliveryNo: string;
-  documentDate: Date;
-  customerName: string;
-  orderNoForTable: string;
+export type ResinDeliveryNotePdfLine = {
+  index: number;
+  orderNo: string;
   productName: string;
   grade: string;
   unit: string;
   quantity: number;
+  pieces: string;
+};
+
+export type ResinDeliveryNotePdfInput = {
+  deliveryNo: string;
+  documentDate: Date;
+  customerName: string;
+  lines: ResinDeliveryNotePdfLine[];
+  totalQuantity: number;
   carrierLine: string;
   remarkLine: string;
   reviewer?: string | null;
@@ -34,12 +41,17 @@ function formatDateLine(d: Date): string {
   return `${y}/${m}/${day}`;
 }
 
-/** 表格下沿到签字区顶部的空隙 (pt)，与打印页约 24px 接近 */
-const GAP_TABLE_TO_SIGN_PT = 26;
-/** 合计行下方的空隙 (pt) */
-const GAP_AFTER_TABLE_BOTTOM_PT = 8;
+function formatQty(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
 
-/** 服务端生成 A4 纵向送货单 PDF（仅送货单内容，无 CRM 外壳） */
+/** 表格下沿到签字区顶部的空隙 (pt) */
+const GAP_TABLE_TO_SIGN_PT = 26;
+const GAP_AFTER_TABLE_BOTTOM_PT = 8;
+const ROW_H = 36;
+const HEADER_H = 22;
+
+/** 服务端生成 A4 纵向送货单 PDF（多行小订单分摊） */
 export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const M = 50;
@@ -60,7 +72,7 @@ export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput)
     registerEmbeddedPdfFonts(doc);
 
     const dateStr = formatDateLine(data.documentDate);
-    const qtyStr = Number.isInteger(data.quantity) ? String(data.quantity) : data.quantity.toFixed(2);
+    const totalStr = formatQty(data.totalQuantity);
 
     let yTop = M;
     setEmbeddedPdfFontRegular(doc).fontSize(11).text(RESIN_DELIVERY_NOTE_COMPANY_TITLE, M, yTop, {
@@ -74,16 +86,19 @@ export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput)
     const headerLine = `购货单位：${data.customerName}    日期：${dateStr}    编号：${data.deliveryNo}`;
     setEmbeddedPdfFontRegular(doc).fontSize(10).text(headerLine, M, doc.y, { width: innerW, align: "left" });
     doc.moveDown(0.2);
-    const lineY = doc.y;
-    doc.moveTo(M, lineY).lineTo(M + innerW, lineY).strokeColor("#000000").lineWidth(0.5).stroke();
+    const sepY = doc.y;
+    doc.moveTo(M, sepY);
+    doc.lineTo(M + innerW, sepY);
+    doc.lineWidth(0.5);
+    doc.stroke();
     doc.moveDown(0.6);
 
     const colWidths = [36, 92, 118, 70, 44, 56, 44];
     const headers = ["序号", "订单号", "品名", "型号", "单位", "数量", "件数"];
     const tableTop = doc.y;
     let x = M;
-    headers.forEach((h, i) => {
-      doc.rect(x, tableTop, colWidths[i], 22).stroke();
+    headers.forEach((h: string, i: number) => {
+      doc.rect(x, tableTop, colWidths[i], HEADER_H).stroke();
       setEmbeddedPdfFontRegular(doc).fontSize(9).text(h, x + 2, tableTop + 6, {
         width: colWidths[i] - 4,
         align: "center",
@@ -91,41 +106,41 @@ export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput)
       x += colWidths[i];
     });
 
-    let rowY = tableTop + 22;
-    x = M;
-    const cells = [
-      "1",
-      data.orderNoForTable,
-      data.productName,
-      data.grade || "—",
-      data.unit,
-      qtyStr,
-      "—",
-    ];
-    cells.forEach((cell, i) => {
-      doc.rect(x, rowY, colWidths[i], 40).stroke();
-      setEmbeddedPdfFontRegular(doc).fontSize(9).text(cell, x + 4, rowY + 12, {
-        width: colWidths[i] - 8,
-        align: "center",
+    let rowY = tableTop + HEADER_H;
+    for (const line of data.lines) {
+      x = M;
+      const cells = [
+        String(line.index),
+        line.orderNo,
+        line.productName,
+        line.grade || "—",
+        line.unit,
+        formatQty(line.quantity),
+        line.pieces || "—",
+      ];
+      cells.forEach((cell: string, i: number) => {
+        doc.rect(x, rowY, colWidths[i], ROW_H).stroke();
+        setEmbeddedPdfFontRegular(doc).fontSize(9).text(cell, x + 4, rowY + 10, {
+          width: colWidths[i] - 8,
+          align: "center",
+        });
+        x += colWidths[i];
       });
-      x += colWidths[i];
-    });
+      rowY += ROW_H;
+    }
 
-    rowY += 40;
     x = M;
     const mergeW = colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4];
     doc.rect(x, rowY, mergeW, 22).stroke();
     setEmbeddedPdfFontRegular(doc).fontSize(9).text("合计", x + 2, rowY + 6, { width: mergeW - 4, align: "center" });
     x += mergeW;
     doc.rect(x, rowY, colWidths[5], 22).stroke();
-    setEmbeddedPdfFontRegular(doc).fontSize(9).text(qtyStr, x + 2, rowY + 6, { width: colWidths[5] - 4, align: "center" });
+    setEmbeddedPdfFontRegular(doc).fontSize(9).text(totalStr, x + 2, rowY + 6, { width: colWidths[5] - 4, align: "center" });
     x += colWidths[5];
     doc.rect(x, rowY, colWidths[6], 22).stroke();
     setEmbeddedPdfFontRegular(doc).fontSize(9).text("—", x + 2, rowY + 6, { width: colWidths[6] - 4, align: "center" });
 
-    /** 表格（含合计行）最底边 */
     const tableBottomY = rowY + 22;
-    /** 正文继续位置：紧贴表格下方 */
     let contentY = tableBottomY + GAP_AFTER_TABLE_BOTTOM_PT;
 
     if (data.carrierLine) {
@@ -137,7 +152,6 @@ export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput)
       contentY = doc.y + 8;
     }
 
-    /** 签字区：紧跟在承运/备注之后，再留 GAP_TABLE_TO_SIGN_PT（不再使用 Math.max(...,600) 贴页面底部） */
     const signY = contentY + GAP_TABLE_TO_SIGN_PT;
     const signColW = innerW / 4;
     const signTexts = [
@@ -146,7 +160,7 @@ export function buildResinDeliveryNotePdfBuffer(data: ResinDeliveryNotePdfInput)
       signLabelText("发货人", data.shipper),
       signLabelText("收货人", null),
     ];
-    signTexts.forEach((t, i) => {
+    signTexts.forEach((t: string, i: number) => {
       setEmbeddedPdfFontRegular(doc).fontSize(9).text(t, M + i * signColW, signY, {
         width: signColW - 8,
         align: "left",

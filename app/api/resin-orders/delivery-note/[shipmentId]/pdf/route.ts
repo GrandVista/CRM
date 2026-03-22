@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/server-auth";
 import { getResinDeliveryNoteShipmentWithOrder } from "@/lib/resin-delivery-note-shipment";
 import { buildResinDeliveryNotePdfBuffer } from "@/lib/resin-delivery-note-pdf";
+import { buildResinDeliveryNotePdfInputFromShipment } from "@/lib/resin-delivery-note-build";
 import { parsePdfDisposition } from "@/lib/pdf/disposition";
 import { pdfBufferNextResponse } from "@/lib/pdf/response";
 import { handleApiRouteError } from "@/lib/api-route-error-handler";
@@ -26,30 +27,8 @@ export async function GET(
       return NextResponse.json({ success: false, message: "找不到发货记录" }, { status: 404 });
     }
 
-    const order = shipment.resinOrder;
-    const shipmentD = new Date(shipment.shipmentDate);
-    const documentDate = Number.isNaN(shipmentD.getTime()) ? new Date() : shipmentD;
-    const orderNoForTable = order.customerPoNo?.trim() || order.orderNo;
-    const carrierParts = [shipment.driverName, shipment.vehicleNo, shipment.driverPhone].filter(Boolean);
-    const carrierLine = carrierParts.join(" / ");
-    const remarkParts = [shipment.remarks, order.remarks].filter((x) => x && String(x).trim());
-    const remarkLine = remarkParts.length ? remarkParts.join("；") : "";
-
-    const buffer = await buildResinDeliveryNotePdfBuffer({
-      deliveryNo: shipment.deliveryNo,
-      documentDate,
-      customerName: order.customerName,
-      orderNoForTable,
-      productName: order.productName,
-      grade: order.grade ?? "",
-      unit: order.unit,
-      quantity: shipment.quantity,
-      carrierLine,
-      remarkLine,
-      reviewer: shipment.reviewer,
-      invoicer: shipment.invoicer,
-      shipper: shipment.shipper,
-    });
+    const pdfInput = buildResinDeliveryNotePdfInputFromShipment(shipment);
+    const buffer = await buildResinDeliveryNotePdfBuffer(pdfInput);
 
     const safeName = `delivery-note-${shipment.deliveryNo.replace(/[^\w.-]+/g, "_")}.pdf`;
     return pdfBufferNextResponse(buffer, { disposition, filename: safeName });

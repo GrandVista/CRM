@@ -488,24 +488,46 @@ model ResinOrder {
   remarks         String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+  /// 兼容旧版：主订单级客户 PO；新业务请使用 ResinPurchaseOrder.customerPoNo
   customerPoNo    String?
   customer        Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
   payments        ResinOrderPayment[]
   shipments       ResinOrderShipment[]
+  purchaseOrders  ResinPurchaseOrder[]
+}
+
+/// 小订单（客户采购单号），隶属于总量订单 ResinOrder
+model ResinPurchaseOrder {
+  id            String                   @id @default(cuid())
+  resinOrderId  String
+  customerPoNo  String
+  quantity      Float
+  orderDate     DateTime
+  remarks       String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  resinOrder    ResinOrder               @relation(fields: [resinOrderId], references: [id], onDelete: Cascade)
+  shipmentItems ResinOrderShipmentItem[]
+  paymentItems  ResinOrderPaymentItem[]
+
+  @@index([resinOrderId])
+  @@index([resinOrderId, customerPoNo])
 }
 
 model ResinOrderShipment {
-  id                       String     @id @default(cuid())
+  id                       String                   @id @default(cuid())
   resinOrderId             String
-  deliveryNo               String     @unique
+  deliveryNo               String                   @unique
   shipmentDate             DateTime
-  quantity                 Float      @default(0)
+  /// 本单发货总数量：有明细时与 items 数量之和一致；旧数据仅本字段
+  quantity                 Float                    @default(0)
   vehicleNo                String?
   driverName               String?
   driverPhone              String?
   remarks                  String?
-  createdAt                DateTime   @default(now())
-  arrivalConfirmed         Boolean    @default(false)
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  arrivalConfirmed         Boolean                  @default(false)
   signedDeliveryNoteName   String?
   /// * 回签文件在服务器 uploads 目录下的相对路径，如 resin-signed-delivery/xxx.pdf
   signedDeliveryNoteUrl    String?
@@ -513,23 +535,57 @@ model ResinOrderShipment {
   invoicer                 String?
   reviewer                 String?
   shipper                  String?
-  resinOrder               ResinOrder @relation(fields: [resinOrderId], references: [id], onDelete: Cascade)
+  resinOrder               ResinOrder               @relation(fields: [resinOrderId], references: [id], onDelete: Cascade)
+  items                    ResinOrderShipmentItem[]
 
   @@index([resinOrderId, shipmentDate])
 }
 
+/// 送货单与小订单的数量分摊
+model ResinOrderShipmentItem {
+  id              String               @id @default(cuid())
+  shipmentId      String
+  purchaseOrderId String
+  quantity        Float
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  shipment        ResinOrderShipment   @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  purchaseOrder   ResinPurchaseOrder   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([shipmentId, purchaseOrderId])
+  @@index([purchaseOrderId])
+}
+
 model ResinOrderPayment {
-  id           String     @id @default(cuid())
+  id           String                  @id @default(cuid())
   resinOrderId String
   paymentDate  DateTime
-  amount       Float      @default(0)
+  /// 本单收款总额：有明细时与 items 金额之和一致；旧数据仅本字段
+  amount       Float                   @default(0)
   method       String?
   referenceNo  String?
   remarks      String?
-  createdAt    DateTime   @default(now())
-  resinOrder   ResinOrder @relation(fields: [resinOrderId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  resinOrder   ResinOrder              @relation(fields: [resinOrderId], references: [id], onDelete: Cascade)
+  items        ResinOrderPaymentItem[]
 
   @@index([resinOrderId, paymentDate])
+}
+
+/// 收款单与小订单的金额分摊
+model ResinOrderPaymentItem {
+  id              String             @id @default(cuid())
+  paymentId       String
+  purchaseOrderId String
+  amount          Float
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  payment         ResinOrderPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  purchaseOrder   ResinPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, purchaseOrderId])
+  @@index([purchaseOrderId])
 }
 
 enum CustomerStatus {

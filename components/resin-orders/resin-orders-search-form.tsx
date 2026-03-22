@@ -29,7 +29,7 @@ export function ResinOrdersSearchForm() {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="订单号 / 客户 PO / 客户 / 产品"
+          placeholder="总订单号 / 小单采购单号 / 客户 / 产品"
           className="w-56"
         />
       </div>

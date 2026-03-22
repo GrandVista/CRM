@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ResinOrderFormData } from "@/lib/actions/resin-orders";
+import { formatAmount } from "@/lib/numbers";
 
 type CustomerOption = {
   id: string;
@@ -25,14 +26,12 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
   const [isPending, startTransition] = useTransition();
   const [customerId, setCustomerId] = useState(defaultValues?.customerId ?? "");
   const [customerName, setCustomerName] = useState(defaultValues?.customerName ?? "");
-  const [customerPoNo, setCustomerPoNo] = useState(defaultValues?.customerPoNo ?? "");
   const [productName, setProductName] = useState(defaultValues?.productName ?? "");
   const [grade, setGrade] = useState(defaultValues?.grade ?? "");
   const [quantity, setQuantity] = useState(String(defaultValues?.quantity ?? 0));
   const [unit, setUnit] = useState(defaultValues?.unit ?? "KG");
   const [unitPrice, setUnitPrice] = useState(String(defaultValues?.unitPrice ?? 0));
   const [currency, setCurrency] = useState(defaultValues?.currency ?? "USD");
-  const [totalAmount, setTotalAmount] = useState(String(defaultValues?.totalAmount ?? 0));
   const [orderDate, setOrderDate] = useState(defaultValues?.orderDate ?? new Date().toISOString().slice(0, 10));
   const [deliveryDate, setDeliveryDate] = useState(defaultValues?.deliveryDate ?? "");
   const [warehouse, setWarehouse] = useState(defaultValues?.warehouse ?? "");
@@ -41,10 +40,10 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
   const [contactPhone, setContactPhone] = useState(defaultValues?.contactPhone ?? "");
   const [remarks, setRemarks] = useState(defaultValues?.remarks ?? "");
 
-  const computedTotal = useMemo(() => {
+  const computedReceivable = useMemo(() => {
     const q = Number(quantity) || 0;
     const p = Number(unitPrice) || 0;
-    return (q * p).toFixed(2);
+    return q * p;
   }, [quantity, unitPrice]);
 
   function onCustomerChange(v: string) {
@@ -62,17 +61,18 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
       alert("请填写必填字段");
       return;
     }
+    const q = Number(quantity) || 0;
+    const up = Number(unitPrice) || 0;
     const payload: ResinOrderFormData = {
       customerId,
       customerName,
-      customerPoNo: customerPoNo || undefined,
       productName,
       grade: grade || undefined,
-      quantity: Number(quantity) || 0,
+      quantity: q,
       unit: unit || "KG",
-      unitPrice: Number(unitPrice) || 0,
+      unitPrice: up,
       currency: currency || "USD",
-      totalAmount: Number(totalAmount) || 0,
+      totalAmount: q * up,
       orderDate,
       deliveryDate: deliveryDate || undefined,
       warehouse: warehouse || undefined,
@@ -109,10 +109,6 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
           <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
         </div>
         <div className="space-y-2">
-          <Label>客户采购单号 / Customer PO No.</Label>
-          <Input value={customerPoNo} onChange={(e) => setCustomerPoNo(e.target.value)} placeholder="选填" />
-        </div>
-        <div className="space-y-2">
           <Label>产品名称 *</Label>
           <Input value={productName} onChange={(e) => setProductName(e.target.value)} required />
         </div>
@@ -121,7 +117,7 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
           <Input value={grade} onChange={(e) => setGrade(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>数量 *</Label>
+          <Label>总量 *</Label>
           <Input type="number" step="0.01" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </div>
         <div className="space-y-2">
@@ -145,14 +141,11 @@ export function ResinOrderForm({ customers, defaultValues, submitLabel, onSubmit
           </select>
         </div>
         <div className="space-y-2">
-          <Label>总金额</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={totalAmount}
-            onChange={(e) => setTotalAmount(e.target.value)}
-            placeholder={`自动计算建议值：${computedTotal}`}
-          />
+          <Label>订单应收总额（自动）</Label>
+          <p className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
+            {formatAmount(computedReceivable, currency || "USD")}
+            <span className="ml-2 text-xs font-normal text-muted-foreground">总量 × 单价</span>
+          </p>
         </div>
         <div className="space-y-2">
           <Label>订单日期 *</Label>
